@@ -62,8 +62,9 @@ jobs:
     - name: Activate Packaging Tool
       shell: bash
       run: |
-        dart pub global activate fastforge
-        echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+        echo "PUB_CACHE=$RUNNER_TEMP/pub-cache" >> "$GITHUB_ENV"
+        echo "$RUNNER_TEMP/pub-cache/bin" >> "$GITHUB_PATH"
+        PUB_CACHE="$RUNNER_TEMP/pub-cache" dart pub global activate fastforge
       
     - name: Make windows/msix
       if: matrix.runtime.name == 'windows'
