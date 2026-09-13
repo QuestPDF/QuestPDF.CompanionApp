@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         runtime: 
-        - name: windows-x64
+        - name: windows
           runs-on: windows-latest
         - name: linux
           runs-on: ubuntu-latest
