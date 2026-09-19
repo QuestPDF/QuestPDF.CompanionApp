@@ -7,6 +7,16 @@ dart run build_runner build --delete-conflicting-outputs
 ```
 
 
+## Regenerate Windows icon
+
+`windows/runner/resources/app_icon.ico` must contain multiple frames (16-256 px) so that the taskbar gets a crisp
+image at every size. `flutter_launcher_icons` writes a single 256 px frame, so regenerate the `.ico` with ImageMagick:
+
+```sh
+magick assets/questpdf-logo.png -define icon:auto-resize=256,128,64,48,32,24,16 windows/runner/resources/app_icon.ico
+```
+
+
 ## Sign msix file on Windows:
 
 ```ps
