@@ -9,11 +9,31 @@ dart run build_runner build --delete-conflicting-outputs
 
 ## Regenerate Windows icon
 
-`windows/runner/resources/app_icon.ico` must contain multiple frames (16-256 px) so that the taskbar gets a crisp
-image at every size. `flutter_launcher_icons` writes a single 256 px frame, so regenerate the `.ico` with ImageMagick:
+`windows/runner/resources/app_icon.ico` contains 13 frames so that the taskbar, title bar and Explorer get a crisp
+image at every size and DPI scale (e.g. 30 px = 24 px at 125%). Automatic downscaling of the logo looks blurry or
+jagged below 64 px, so the small frames are drawn by hand and kept as PNG files in
+`windows/runner/resources/icon-frames/` (`<size>px.png`). The 128 and 256 px frames come from `assets/questpdf-logo.png`.
+
+The Windows target is intentionally absent from `flutter_launcher_icons.yaml`; it would overwrite the file with a
+single 256 px frame.
+
+Assemble the `.ico` with ImageMagick (largest frame first, so file browsers report it as 256x256):
 
 ```sh
-magick assets/questpdf-logo.png -define icon:auto-resize=256,128,64,48,32,24,16 windows/runner/resources/app_icon.ico
+magick assets/questpdf-logo.png \
+  ( -clone 0 -filter Lanczos -resize 128x128 ) \
+  windows/runner/resources/icon-frames/64px.png \
+  windows/runner/resources/icon-frames/48px.png \
+  windows/runner/resources/icon-frames/42px.png \
+  windows/runner/resources/icon-frames/40px.png \
+  windows/runner/resources/icon-frames/36px.png \
+  windows/runner/resources/icon-frames/32px.png \
+  windows/runner/resources/icon-frames/30px.png \
+  windows/runner/resources/icon-frames/28px.png \
+  windows/runner/resources/icon-frames/24px.png \
+  windows/runner/resources/icon-frames/20px.png \
+  windows/runner/resources/icon-frames/16px.png \
+  windows/runner/resources/app_icon.ico
 ```
 
 
