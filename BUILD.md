@@ -11,22 +11,27 @@ dart run build_runner build --delete-conflicting-outputs
 
 1) Download and install: https://support.certum.eu/en/cert-offer-card-manager/
 2) Connect SmartCard to PC
-3) Install signtool:
+3) When running in win-arm64, start the x64 PowerShell, WIN+R:
+
+```
+powershell -Command "Start-Process 'C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe' -Verb RunAs"
+```
+
+4) Install signtool (only on a fresh environment):
 
 ```ps
+cd $HOME
 Invoke-WebRequest "https://www.nuget.org/api/v2/package/Microsoft.Windows.SDK.BuildTools" -OutFile sdk.zip
 Expand-Archive sdk.zip -DestinationPath C:\sdk-buildtools
 Get-ChildItem C:\sdk-buildtools -Recurse -Filter signtool.exe | Select-Object FullName
 ```
 
-4) Find signtool:
+5) Find signtool:
 
 ```ps
-$signtool = (Get-ChildItem C:\sdk-buildtools -Recurse -Filter signtool.exe | Where-Object FullName -like "*\x64\*" | Select-Object -First 1).FullName
+$signtool = (Get-ChildItem C:\sdk-buildtools -Recurse -Filter signtool.exe | Where-Object FullName -like "*\x86\*" | Select-Object -First 1).FullName
 & $signtool /?
 ```
-
-5) Download GitHub Actions package with QuestPDF Companion App. Extract. Open containing folder in terminal.
 
 6) Install SmartCard:
 
@@ -42,13 +47,15 @@ certutil -user -addstore My "$HOME\cert.cer"
 certutil -user -csp "Microsoft Base Smart Card Crypto Provider" -repairstore My a62ca27b2664393fe05f13238467feb6822617fd
 ```
 
-7) Sign the msix installer:
+7) Download GitHub Actions package with QuestPDF Companion App. Extract. Open containing folder in terminal.
+
+8) Sign the msix installer:
 
 ```ps
 & $signtool sign /fd SHA256 /sha1 a62ca27b2664393fe05f13238467feb6822617fd /tr http://time.certum.pl /td SHA256 /v /debug "questpdf_companion-2026.8.0-windows.msix"
 ```
 
-8) Verify:
+9) Verify:
 
 ```ps
 & $signtool verify /pa /v "questpdf_companion-2026.8.0-windows.msix"
