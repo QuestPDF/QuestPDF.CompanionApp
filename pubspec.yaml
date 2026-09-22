@@ -84,3 +84,8 @@ flutter:
     - family: FontAwesome Light
       fonts:
         - asset: assets/FontAwesomePro.otf
+
+# REQUIRED!
+msix_config:
+  # Registers `questpdf-companion` on PATH once the MSIX is installed.
+  execution_alias: questpdf-companion

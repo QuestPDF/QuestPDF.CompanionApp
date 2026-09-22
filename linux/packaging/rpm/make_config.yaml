@@ -17,3 +17,8 @@ categories:
   - Development
 
 startup_notify: true
+
+postinstall_scripts:
+  - ln -sf %{_datadir}/%{name}/questpdf_companion %{_bindir}/questpdf-companion
+postuninstall_scripts:
+  - '[ $1 -eq 0 ] && rm -f %{_bindir}/questpdf-companion || :'

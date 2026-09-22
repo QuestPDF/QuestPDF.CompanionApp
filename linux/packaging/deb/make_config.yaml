@@ -15,3 +15,8 @@ keywords:
   - companion
 
 startup_notify: true
+
+postinstall_scripts:
+  - ln -sf /opt/questpdf_companion/questpdf_companion /usr/bin/questpdf-companion
+postuninstall_scripts:
+  - rm -f /usr/bin/questpdf-companion
