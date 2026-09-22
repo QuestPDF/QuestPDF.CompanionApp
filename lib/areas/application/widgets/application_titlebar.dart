@@ -5,6 +5,7 @@ import 'package:questpdf_companion/areas/application/widgets/application_titleba
 import 'package:questpdf_companion/areas/application/widgets/application_titlebar_layout_error.dart';
 
 import '../state/application_state_provider.dart';
+import 'application_titlebar_macos_automatic_launch.dart';
 import 'application_titlebar_hot_reload_warning.dart';
 import 'application_titlebar_license.dart';
 import 'application_titlebar_logo.dart';
@@ -25,6 +26,7 @@ class ApplicationTitlebar extends ConsumerWidget {
           const SizedBox(width: 12),
           const ApplicationTitlebarLogo(),
           const Spacer(),
+          const ApplicationTitlebarMacOsAutomaticLaunch(),
           const ApplicationTitlebarUpdateAvailable(),
           const ApplicationTitlebarFeatures(),
           const ApplicationTitlebarSettings(),
@@ -42,6 +44,7 @@ class ApplicationTitlebar extends ConsumerWidget {
         const ApplicationTitlebarHotReloadWarning(),
         const ApplicationTitlebarComplexDocumentWarning(),
         const ApplicationTitlebarLicense(),
+        const ApplicationTitlebarMacOsAutomaticLaunch(),
         const ApplicationTitlebarUpdateAvailable(),
         const ApplicationTitlebarFeatures(),
         const ApplicationTitlebarSettings(),

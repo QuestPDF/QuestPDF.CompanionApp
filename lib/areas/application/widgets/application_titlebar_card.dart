@@ -5,9 +5,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 class ApplicationTitlebarCardAction {
   final String label;
-  final String url;
 
-  const ApplicationTitlebarCardAction({required this.label, required this.url});
+  /// Either a link to open, or a callback for actions handled inside the app.
+  final String? url;
+  final VoidCallback? onPressed;
+
+  const ApplicationTitlebarCardAction({required this.label, this.url, this.onPressed});
 }
 
 class ApplicationTitlebarCard extends ConsumerWidget {
@@ -23,6 +26,8 @@ class ApplicationTitlebarCard extends ConsumerWidget {
   final List<String> content;
   final List<ApplicationTitlebarCardAction> actions;
 
+  final double width;
+
   const ApplicationTitlebarCard({
     super.key,
     required this.isVisible,
@@ -33,6 +38,7 @@ class ApplicationTitlebarCard extends ConsumerWidget {
     required this.title,
     required this.content,
     required this.actions,
+    this.width = 300,
   });
 
   @override
@@ -42,7 +48,7 @@ class ApplicationTitlebarCard extends ConsumerWidget {
 
     Widget buildTooltipContent() {
       return Container(
-        constraints: const BoxConstraints(maxWidth: 300),
+        constraints: BoxConstraints(maxWidth: width),
         child: Card(
           color: Theme.of(context).cardColor,
           elevation: 8,
@@ -60,12 +66,12 @@ class ApplicationTitlebarCard extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: actions.map((action) {
+                      final url = action.url;
+                      final onPressed = action.onPressed ?? (url == null ? null : () => launchUrl(Uri.parse(url)));
+
                       return Padding(
                         padding: const EdgeInsets.only(left: 12),
-                        child: OutlinedButton(
-                          onPressed: () => launchUrl(Uri.parse(action.url)),
-                          child: Text(action.label),
-                        ),
+                        child: OutlinedButton(onPressed: onPressed, child: Text(action.label)),
                       );
                     }).toList(),
                   ),
