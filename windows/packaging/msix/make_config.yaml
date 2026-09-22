@@ -1,4 +1,5 @@
 logo_path: assets/questpdf-logo.png
+trim_logo: "false"
 display_name: QuestPDF Companion
 publisher_display_name: QuestPDF; Marcin Ziąbek CodeFlint
 publisher: CN=Marcin Ziąbek CodeFlint, O=Marcin Ziąbek CodeFlint, STREET=Chrzanowska 29, PostalCode=32-551, L=Mętków, S=małopolskie, C=PL, SERIALNUMBER=382059359, OID.1.3.6.1.4.1.311.60.2.1.3=PL, OID.2.5.4.15=Business Entity
