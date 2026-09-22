@@ -27,13 +27,16 @@ class ApplicationStateProvider extends ChangeNotifier {
   bool isComplexDocument = false;
   bool isDocumentHotReloaded = false;
 
-  Future loadDefaultSettings() async {
+  Future loadDefaultSettings({int? communicationPortOverride}) async {
     _prefs ??= await SharedPreferences.getInstance();
 
     themeMode = ThemeMode.values[_prefs!.getInt('themeMode') ?? 0];
     defaultCodeEditor = CodeEditor.values[_prefs!.getInt('defaultCodeEditor') ?? 0];
     showDocumentHierarchy = _prefs!.getBool('showDocumentHierarchy') ?? true;
-    communicationPort = _prefs!.getInt('communicationPort') ?? communicationServiceDefaultPort;
+
+    communicationPort = communicationPortOverride
+        ?? _prefs!.getInt('communicationPort')
+        ?? communicationServiceDefaultPort;
 
     notifyListeners();
   }

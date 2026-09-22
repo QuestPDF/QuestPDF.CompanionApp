@@ -5,14 +5,18 @@ import 'package:questpdf_companion/areas/application/widgets/application_layout.
 import 'package:window_manager/window_manager.dart';
 
 import 'communication_service.dart';
+import 'shared/command_line_arguments.dart';
 
-void main() async {
+void main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
   await windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: false);
   await windowManager.setMinimumSize(const Size(600, 500));
 
   await applicationStateProviderInstance.loadDefaultSettings();
+  await applicationStateProviderInstance.loadDefaultSettings(
+    communicationPortOverride: parseCommunicationPort(arguments),
+  );
 
   Future.microtask(() async {
     final communicationPort = applicationStateProviderInstance.communicationPort;
