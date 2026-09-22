@@ -44,10 +44,11 @@ jobs:
       run: npm install -g appdmg     
     
     - name: Setup Flutter
-      shell: bash
-      run: |
-        git clone https://github.com/flutter/flutter.git --depth 1 --branch 3.44.0 "$RUNNER_TEMP/flutter"
-        echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      uses: subosito/flutter-action@v2
+      with:
+        channel: stable
+        flutter-version: 3.47.x
+        cache: true
     
     - name: Flutter version
       run: flutter --version
