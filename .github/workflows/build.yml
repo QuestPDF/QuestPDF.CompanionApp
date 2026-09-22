@@ -49,13 +49,13 @@ jobs:
         channel: stable
         flutter-version: 3.47.x
         cache: true
+
+    - name: Fix Flutter repository ownership check
+      if: matrix.runtime.name == 'linux'
+      run: git config --global --add safe.directory "$FLUTTER_ROOT"
     
     - name: Flutter version
       run: flutter --version
-
-    - name: Fix Flutter on Linux
-      if: matrix.runtime.name == 'linux'
-      run: git config --global --add safe.directory '*'
 
     - name: Get Dependencies
       run: flutter pub get
