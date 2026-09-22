@@ -180,7 +180,7 @@ class DocumentPreviewElementDetailsState extends ConsumerState<DocumentPreviewEl
           onEnter: (_) => setState(() => showSourceCodePreview = true),
           onExit: (_) => setState(() => showSourceCodePreview = false),
           child: IconButton(
-            icon: Icon(FontAwesomeIcons.terminal, size: 16),
+            icon: Icon(FontAwesomeIcons.penLine, size: 16),
             visualDensity: VisualDensity.compact,
             onPressed: () => tryToOpenInCodeEditor(context),
           ),

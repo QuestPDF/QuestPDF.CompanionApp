@@ -24,7 +24,8 @@ class FontAwesomeIcons {
   static const IconData layoutError = IconData(0xe290, fontFamily: faLight);
   static const IconData license = IconData(0xf007, fontFamily: faLight);
   static const IconData cloudArrowUp = IconData(0xf0ee, fontFamily: faLight);
-  static const IconData terminal = IconData(0xe212, fontFamily: faLight);
+  static const IconData penLine = IconData(0xe212, fontFamily: faLight);
+  static const IconData automaticLaunch = IconData(0xf0e7, fontFamily: faLight);
   static const IconData rocket = IconData(0xf135, fontFamily: faLight);
   static const IconData gear = IconData(0xf013, fontFamily: faLight);
 
