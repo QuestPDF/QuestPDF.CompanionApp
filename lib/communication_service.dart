@@ -49,8 +49,6 @@ class CommunicationService {
   }
 
   Future startServer(int port) async {
-    await Future.delayed(Duration(seconds: 1));
-
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
     applicationStateProviderInstance.changeCommunicationStatus(CommunicationStatus.active);
 
