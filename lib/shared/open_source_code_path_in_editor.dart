@@ -12,7 +12,6 @@ Future openSourceCodePathInEditor(CodeEditor editor, String filePath, int lineNu
   final shell = Shell(throwOnError: true, runInShell: true);
   final codeEditor = applicationStateProviderInstance.defaultCodeEditor;
 
-  // paths may contain spaces (e.g. "C:\Users\John Smith\..."), so they must be quoted
   if (codeEditor == CodeEditor.rider) await shell.run('rider --line $lineNumber ${shellArgument(filePath)}');
 
   if (codeEditor == CodeEditor.visualCode) await shell.run('code -g ${shellArgument('$filePath:$lineNumber')}');
