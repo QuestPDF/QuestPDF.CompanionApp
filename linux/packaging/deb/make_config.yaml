@@ -5,7 +5,7 @@ maintainer:
   email: contact@questpdf.com
 priority: optional
 section: x11
-installed_size: 100000000
+installed_size: 30000
 essential: false
 icon: assets/questpdf-logo.png
 
