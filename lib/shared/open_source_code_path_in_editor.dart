@@ -12,11 +12,13 @@ Future openSourceCodePathInEditor(CodeEditor editor, String filePath, int lineNu
   final shell = Shell(throwOnError: true, runInShell: true);
   final codeEditor = applicationStateProviderInstance.defaultCodeEditor;
 
-  if (codeEditor == CodeEditor.rider) await shell.run('rider --line $lineNumber $filePath');
+  if (codeEditor == CodeEditor.rider) await shell.run('rider --line $lineNumber ${shellArgument(filePath)}');
 
-  if (codeEditor == CodeEditor.visualCode) await shell.run('code -g $filePath:$lineNumber');
+  if (codeEditor == CodeEditor.visualCode) await shell.run('code -g ${shellArgument('$filePath:$lineNumber')}');
 
-  if (codeEditor == CodeEditor.visualStudio) await shell.run('start devenv /Command "Edit.Goto $lineNumber" $filePath');
+  if (codeEditor == CodeEditor.visualStudio) {
+    await shell.run('start devenv /Command "Edit.Goto $lineNumber" ${shellArgument(filePath)}');
+  }
 }
 
 Future tryOpenSourceCodePathInEditor(BuildContext context, CodeEditor editor, String filePath, int lineNumber) async {
