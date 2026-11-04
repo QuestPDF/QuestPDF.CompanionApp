@@ -36,11 +36,6 @@ class FontAwesomeIcons {
   static const IconData check = IconData(0xf00c, fontFamily: faLight);
   static const IconData externalLink = IconData(0xf08e, fontFamily: faLight);
 
-  static const IconData speed = IconData(0xf628, fontFamily: faLight);
-  static const IconData codeNavigation = IconData(0xf121, fontFamily: faLight);
-  static const IconData cloudArrowUp = IconData(0xf0ee, fontFamily: faLight);
-  static const IconData automaticLaunch = IconData(0xf0e7, fontFamily: faLight);
-
   // element details
   static const IconData elementPage = IconData(0xf15c, fontFamily: faLight);
   static const IconData elementPosition = IconData(0xf05b, fontFamily: faLight);

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,7 +22,8 @@ void main(List<String> arguments) async {
   });
 
   await windowManager.ensureInitialized();
-  await windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: false);
+  // macOS keeps its native window buttons; other platforms draw their own in the title bar
+  await windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: Platform.isMacOS);
   await windowManager.setMinimumSize(const Size(600, 500));
 
   await applicationStateProviderInstance.loadDefaultSettings();

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:questpdf_companion/areas/application/state/application_version_state.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../shared/font_awesome_icons.dart';
+import '../../../shared/questpdf_urls.dart';
+import '../../../theme/app_colors.dart';
+import '../state/application_version_state.dart';
 import 'application_titlebar_card.dart';
 
 class ApplicationTitlebarUpdateAvailable extends ConsumerWidget {
@@ -13,23 +14,21 @@ class ApplicationTitlebarUpdateAvailable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final applicationVersion = ref.watch(applicationVersionProvider);
 
-    final currentVersion = applicationVersion.currentApplicationVersion?.text ?? "Unknown";
-    final latestVersion = applicationVersion.latestApplicationVersion?.text ?? "Unknown";
+    if (!applicationVersion.isUpdateAvailable) return const SizedBox.shrink();
 
-    const detailsUrl = "https://www.questpdf.com/companion/download.html";
+    final currentVersion = applicationVersion.currentApplicationVersion!.text;
+    final latestVersion = applicationVersion.latestApplicationVersion!.text;
 
     return ApplicationTitlebarCard(
-      isVisible: applicationVersion.isUpdateAvailable,
-      icon: FontAwesomeIcons.cloudArrowUp,
-      emphasized: true,
-      emphasisColor: Colors.blue,
+      icon: FontAwesomeIcons.arrowsRotate,
+      tone: StatusTone.info,
+      label: "Update",
       title: "Update Available",
       content: [
         "Please consider updating the application to receive the latest features and improvements.",
         "$currentVersion → $latestVersion",
       ],
-      actions: const [ApplicationTitlebarCardAction(label: "Download", url: detailsUrl)],
-      onClicked: () => launchUrl(Uri.parse(detailsUrl)),
+      action: const ApplicationTitlebarCardAction(label: "Download", url: QuestPdfUrls.companionDownload),
     );
   }
 }
