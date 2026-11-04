@@ -1,58 +1,55 @@
 import 'dart:async';
 
-import 'package:dartx/dartx.dart';
 import 'package:flutter/material.dart';
 import 'package:process_run/process_run.dart';
 
 import '../areas/application/state/application_state_provider.dart';
 
-Future openSourceCodePathInEditor(CodeEditor editor, String filePath, int lineNumber) async {
-  if (filePath.isNullOrEmpty) return;
+Future<void> openSourceCodePathInEditor(CodeEditor editor, String filePath, int lineNumber) async {
+  if (filePath.isEmpty) return;
 
   final shell = Shell(throwOnError: true, runInShell: true);
-  final codeEditor = applicationStateProviderInstance.defaultCodeEditor;
 
-  if (codeEditor == CodeEditor.rider) await shell.run('rider --line $lineNumber $filePath');
+  final command = switch (editor) {
+    CodeEditor.rider => 'rider --line $lineNumber $filePath',
+    CodeEditor.visualCode => 'code -g $filePath:$lineNumber',
+    CodeEditor.visualStudio => 'start devenv /Command "Edit.Goto $lineNumber" $filePath',
+  };
 
-  if (codeEditor == CodeEditor.visualCode) await shell.run('code -g $filePath:$lineNumber');
-
-  if (codeEditor == CodeEditor.visualStudio) await shell.run('start devenv /Command "Edit.Goto $lineNumber" $filePath');
+  await shell.run(command);
 }
 
-Future tryOpenSourceCodePathInEditor(BuildContext context, CodeEditor editor, String filePath, int lineNumber) async {
-  void showExceptionMessage() {
+Future<void> tryOpenSourceCodePathInEditor(
+  BuildContext context,
+  CodeEditor editor,
+  String filePath,
+  int lineNumber,
+) async {
+  try {
+    await openSourceCodePathInEditor(editor, filePath, lineNumber);
+  } catch (e) {
     if (!context.mounted) return;
 
-    final backgroundColor = Theme.of(context).colorScheme.error;
-    final textColor = Theme.of(context).colorScheme.onError;
-    final textStyle = Theme.of(context).textTheme.bodySmall?.copyWith(color: textColor);
+    final theme = Theme.of(context);
 
     final message =
         "Unable to open the source code in ${getEditorName(editor)}. "
         "Please ensure that the editor is installed correctly and can be launched from the command line (it is added to the PATH environment variable). "
-        "Alternatively, you can change the default editor in the application settings.";
+        "Alternatively, you can change the default editor on the welcome screen.";
 
-    final snackBar = SnackBar(
-      backgroundColor: backgroundColor,
-      content: Text(message, style: textStyle),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: theme.colorScheme.error,
+        content: Text(message, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onError)),
+      ),
     );
-
-    ScaffoldMessenger.of(context).showSnackBar(snackBar);
-  }
-
-  try {
-    await openSourceCodePathInEditor(editor, filePath, lineNumber);
-  } catch (e) {
-    showExceptionMessage();
   }
 }
 
 String getEditorName(CodeEditor editor) {
-  if (editor == CodeEditor.rider) return 'Rider';
-
-  if (editor == CodeEditor.visualCode) return 'VS Code';
-
-  if (editor == CodeEditor.visualStudio) return 'Visual Studio';
-
-  return 'Unknown';
+  return switch (editor) {
+    CodeEditor.rider => 'Rider',
+    CodeEditor.visualCode => 'VS Code',
+    CodeEditor.visualStudio => 'Visual Studio',
+  };
 }
