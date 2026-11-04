@@ -7,9 +7,9 @@ part 'document_structure.g.dart';
 
 @JsonSerializable()
 class DocumentStructure {
-  bool isDocumentHotReloaded;
-  List<DocumentStructurePageSize> pages;
-  DocumentHierarchyElement hierarchy;
+  final bool isDocumentHotReloaded;
+  final List<DocumentStructurePageSize> pages;
+  final DocumentHierarchyElement hierarchy;
 
   DocumentStructure(this.isDocumentHotReloaded, this.pages, this.hierarchy);
 

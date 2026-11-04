@@ -64,22 +64,16 @@ class DocumentHierarchySearchState extends ChangeNotifier {
   }
 
   List<SearchCacheItem> getSearchableElements() {
-    if (documentHierarchyProviderInstance.state == null) return [];
+    final root = documentHierarchyProviderInstance.root;
 
-    List<SearchCacheItem> result = [];
+    if (root == null) return [];
 
-    final searchableElementTypes = ["TextBlock", "DebugPointer"];
+    const searchableElementTypes = ["TextBlock", "DebugPointer"];
 
-    void traverse(DocumentHierarchyElement element) {
-      if (searchableElementTypes.contains(element.elementType) && element.searchableContent.isNotNullOrEmpty) {
-        result.add(SearchCacheItem(element.searchableContent!.toLowerCase(), element));
-      }
-
-      element.children.forEach(traverse);
-    }
-
-    traverse(documentHierarchyProviderInstance.state!);
-    return result;
+    return root.selfAndDescendants
+        .where((x) => searchableElementTypes.contains(x.elementType) && x.searchableContent.isNotNullOrEmpty)
+        .map((x) => SearchCacheItem(x.searchableContent!.toLowerCase(), x))
+        .toList();
   }
 
   void search() {
@@ -102,9 +96,10 @@ class DocumentHierarchySearchState extends ChangeNotifier {
   }
 
   void focusOnCurrentSearchResult() {
-    if (searchResults.isEmpty)
+    if (searchResults.isEmpty) {
       documentHierarchyProviderInstance.setSelectedElement(null);
-    else
+    } else {
       documentHierarchyProviderInstance.setSelectedElementAndFocusOnIt(searchResults[searchResultIndex]);
+    }
   }
 }

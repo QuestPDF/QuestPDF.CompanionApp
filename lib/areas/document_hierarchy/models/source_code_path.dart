@@ -4,8 +4,8 @@ part 'source_code_path.g.dart';
 
 @JsonSerializable()
 class SourceCodePath {
-  String filePath;
-  int lineNumber;
+  final String filePath;
+  final int lineNumber;
 
   SourceCodePath(this.filePath, this.lineNumber);
 

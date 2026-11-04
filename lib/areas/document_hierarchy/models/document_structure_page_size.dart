@@ -4,8 +4,8 @@ part 'document_structure_page_size.g.dart';
 
 @JsonSerializable()
 class DocumentStructurePageSize {
-  double width;
-  double height;
+  final double width;
+  final double height;
 
   DocumentStructurePageSize(this.width, this.height);
 

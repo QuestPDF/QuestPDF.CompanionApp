@@ -56,7 +56,7 @@ class DocumentHierarchyLayout extends ConsumerWidget {
           );
         }
 
-        final result = buildTreeContentFromElement(hierarchy.state!);
+        final result = buildTreeContentFromElement(hierarchy.root!);
         result.updateHierarchy();
         return result;
       }

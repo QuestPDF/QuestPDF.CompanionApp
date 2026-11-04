@@ -4,8 +4,8 @@ part 'element_property.g.dart';
 
 @JsonSerializable()
 class ElementProperty {
-  String label;
-  String value;
+  final String label;
+  final String value;
 
   ElementProperty(this.label, this.value);
 
