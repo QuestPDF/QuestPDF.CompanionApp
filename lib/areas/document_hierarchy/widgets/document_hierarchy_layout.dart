@@ -33,7 +33,7 @@ class DocumentHierarchyLayout extends ConsumerWidget {
       return element.layoutErrorMeasurements
           .where((x) => x.pageNumber == currentLayoutErrorPageNumber)
           .firstOrNull
-          .getAnnotationColor();
+          .getAnnotationColor(context);
     }
 
     Widget buildTreeView() {

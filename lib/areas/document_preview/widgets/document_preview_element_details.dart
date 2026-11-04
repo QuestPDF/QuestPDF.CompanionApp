@@ -261,7 +261,7 @@ class DocumentPreviewElementDetailsState extends ConsumerState<DocumentPreviewEl
         height: indicatorSize,
         margin: EdgeInsets.only(left: 5),
         decoration: BoxDecoration(
-          color: measurement.getAnnotationColor(),
+          color: measurement.getAnnotationColor(context),
           borderRadius: const BorderRadius.all(Radius.circular(indicatorSize)),
           border: Border.all(color: Colors.black, width: 0.5),
         ),
