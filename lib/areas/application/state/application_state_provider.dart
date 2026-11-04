@@ -8,8 +8,6 @@ final applicationStateProvider = ChangeNotifierProvider((ref) => applicationStat
 
 enum ApplicationMode { welcomeScreen, documentPreview, genericException }
 
-enum CommunicationStatus { starting, active, error }
-
 enum CodeEditor { rider, visualCode, visualStudio }
 
 enum LicenseType { evaluation, community, professional, enterprise }
@@ -23,8 +21,6 @@ class ApplicationStateProvider extends ChangeNotifier {
   bool showDocumentHierarchy = true;
   int communicationPort = communicationServiceDefaultPort;
   LicenseType? currentLicense;
-  CommunicationStatus communicationStatus = CommunicationStatus.starting;
-  bool isComplexDocument = false;
   bool isDocumentHotReloaded = false;
 
   Future loadDefaultSettings({int? communicationPortOverride}) async {
@@ -34,9 +30,8 @@ class ApplicationStateProvider extends ChangeNotifier {
     defaultCodeEditor = CodeEditor.values[_prefs!.getInt('defaultCodeEditor') ?? 0];
     showDocumentHierarchy = _prefs!.getBool('showDocumentHierarchy') ?? true;
 
-    communicationPort = communicationPortOverride
-        ?? _prefs!.getInt('communicationPort')
-        ?? communicationServiceDefaultPort;
+    communicationPort =
+        communicationPortOverride ?? _prefs!.getInt('communicationPort') ?? communicationServiceDefaultPort;
 
     notifyListeners();
   }
@@ -48,14 +43,14 @@ class ApplicationStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void changeThemeMode(ThemeMode? mode) {
-    themeMode = mode ?? ThemeMode.system;
+  void changeThemeMode(ThemeMode mode) {
+    themeMode = mode;
     _prefs?.setInt('themeMode', themeMode.index);
     notifyListeners();
   }
 
-  void changeDefaultCodeEditor(CodeEditor? editor) {
-    defaultCodeEditor = editor ?? CodeEditor.visualCode;
+  void changeDefaultCodeEditor(CodeEditor editor) {
+    defaultCodeEditor = editor;
     _prefs?.setInt('defaultCodeEditor', defaultCodeEditor.index);
     notifyListeners();
   }
@@ -75,34 +70,21 @@ class ApplicationStateProvider extends ChangeNotifier {
     if (communicationPort == newPort) return;
 
     communicationPort = newPort;
-    communicationStatus = CommunicationStatus.starting;
     _prefs?.setInt('communicationPort', communicationPort);
 
     await communicationServiceInstance.stopServer();
-    communicationServiceInstance.tryToStartTheServer(communicationPort);
+    await communicationServiceInstance.tryToStartTheServer(communicationPort);
 
     notifyListeners();
   }
 
-  void changeCommunicationStatus(CommunicationStatus status) {
-    if (communicationStatus == status) return;
-
-    communicationStatus = status;
-    notifyListeners();
-  }
-
-  void changeMode(ApplicationMode? mode) {
-    currentMode = mode ?? ApplicationMode.welcomeScreen;
+  void changeMode(ApplicationMode mode) {
+    currentMode = mode;
     notifyListeners();
   }
 
   void setDocumentAsHotReloaded(bool hotReloaded) {
     isDocumentHotReloaded = hotReloaded;
-    notifyListeners();
-  }
-
-  void checkIfDisplayComplexDocumentWarningBasedOnJsonLength(int size) {
-    isComplexDocument = size > 5 * 1000 * 1000;
     notifyListeners();
   }
 }

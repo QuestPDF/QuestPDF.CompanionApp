@@ -26,15 +26,8 @@ void main(List<String> arguments) async {
   await windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: Platform.isMacOS);
   await windowManager.setMinimumSize(const Size(600, 500));
 
-  await applicationStateProviderInstance.loadDefaultSettings();
-  await applicationStateProviderInstance.loadDefaultSettings(
-    communicationPortOverride: parseCommunicationPort(arguments),
-  );
-
-  Future.microtask(() async {
-    final communicationPort = applicationStateProviderInstance.communicationPort;
-    await communicationServiceInstance.tryToStartTheServer(communicationPort);
-  });
+  await applicationStateProviderInstance.loadDefaultSettings(communicationPortOverride: parseCommunicationPort(arguments));
+  await communicationServiceInstance.tryToStartTheServer(applicationStateProviderInstance.communicationPort);
 
   runApp(const ProviderScope(child: QuestPdfCompanionApp()));
 }
