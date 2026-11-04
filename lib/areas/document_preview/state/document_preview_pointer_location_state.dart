@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/legacy.dart';
 
 final documentPreviewPointerLocationStateInstance = DocumentPreviewPointerLocationState();
-final documentPreviewPointerLocationStateProvider = ChangeNotifierProvider(
-  (ref) => documentPreviewPointerLocationStateInstance,
-);
 
 class DocumentPreviewPointerLocationState extends ChangeNotifier {
   PointerLocation? state;

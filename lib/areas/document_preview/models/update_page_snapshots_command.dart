@@ -5,7 +5,7 @@ part 'update_page_snapshots_command.g.dart';
 
 @JsonSerializable()
 class UpdatePageSnapshotsCommand {
-  List<PageSnapshotRendered> pages;
+  final List<PageSnapshotRendered> pages;
 
   UpdatePageSnapshotsCommand(this.pages);
 
