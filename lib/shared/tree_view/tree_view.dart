@@ -17,7 +17,7 @@ class TreeView<TContent> extends ConsumerWidget {
 
   const TreeView({super.key, required this.rootNode, required this.selectedElementContent, this.onHover});
 
-  static const itemHeight = 22.0;
+  static const itemHeight = 24.0;
   static final scrollController = ScrollController();
 
   @override
@@ -46,7 +46,8 @@ class TreeView<TContent> extends ConsumerWidget {
       itemCount: visibleItems.length,
       physics: const ClampingScrollPhysics(),
       shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      // the left inset matches the panel headers above
+      padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
       prototypeItem: const SizedBox(height: itemHeight),
       itemBuilder: (context, index) {
         return buildItem(visibleItems[index]);

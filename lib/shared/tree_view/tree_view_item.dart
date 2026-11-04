@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:questpdf_companion/shared/tree_view/tree_view.dart';
 import 'package:questpdf_companion/shared/tree_view/tree_view_model.dart';
 
-import '../../typography.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_theme.dart';
+import '../font_awesome_icons.dart';
 
 class TreeViewItem<TContent> extends StatefulWidget {
   final int indentationLevel;
@@ -16,22 +19,17 @@ class TreeViewItem<TContent> extends StatefulWidget {
 class TreeViewItemState<TContent> extends State<TreeViewItem<TContent>> {
   static const double indentationSize = 24;
   static const double iconSize = 16;
-  static const double iconSpacing = indentationSize - iconSize;
   static const double annotationSize = 10;
 
-  static const IconData folderClosedIcon = IconData(0xf07b, fontFamily: "FontAwesome Light");
-  static const IconData folderOpenIcon = IconData(0xf07c, fontFamily: "FontAwesome Light");
-  static const IconData folderItemIcon = IconData(0xf105, fontFamily: "FontAwesome Light");
+  // the dot is centered under the leading icon of the panel header, and the tree starts where the header text does
+  static const double annotationSlotSize = 16;
+  static const double annotationSpacing = 10;
 
-  static TextStyle labelStyle = TextStyle(fontWeight: FontWeightOptimizedForOperatingSystem.normal);
-  static TextStyle highlightedLabelStyle = TextStyle(fontWeight: FontWeightOptimizedForOperatingSystem.semibold);
-  static TextStyle hintStyle = TextStyle(
-    fontWeight: FontWeightOptimizedForOperatingSystem.thin,
-    fontStyle: FontStyle.italic,
-  );
+  static const TextStyle labelStyle = TextStyle(fontWeight: FontWeight.w400);
+  static const TextStyle highlightedLabelStyle = TextStyle(fontWeight: FontWeight.w500);
+  static const TextStyle hintStyle = TextStyle(fontWeight: FontWeight.w300);
 
-  static const highEmphasisOpacity = 255;
-  static const lowEmphasisOpacity = 128;
+  static const double lowEmphasisOpacity = 0.5;
 
   bool isDimmed = false;
   bool isHovered = false;
@@ -68,6 +66,10 @@ class TreeViewItemState<TContent> extends State<TreeViewItem<TContent>> {
     });
   }
 
+  bool get isEmphasized => !isDimmed || isHovered;
+
+  Color withEmphasis(Color color) => isEmphasized ? color : color.withValues(alpha: color.a * lowEmphasisOpacity);
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -95,77 +97,100 @@ class TreeViewItemState<TContent> extends State<TreeViewItem<TContent>> {
   }
 
   Widget buildHighlight() {
-    const verticalSpacing = 0.0;
     const horizontalSpacing = -6.0;
 
     return Positioned(
-      top: verticalSpacing,
-      bottom: verticalSpacing,
+      top: 0,
+      bottom: 0,
       left: horizontalSpacing,
       right: horizontalSpacing,
       child: Container(
-        decoration: BoxDecoration(color: getHighlightColor(), borderRadius: const BorderRadius.all(Radius.circular(8))),
+        decoration: BoxDecoration(
+          color: getHighlightColor(),
+          borderRadius: const BorderRadius.all(Radius.circular(AppRadius.small)),
+        ),
       ),
     );
   }
 
   Color getContentColor() {
-    final theme = Theme.of(context);
-
-    final targetColor = node.isHighlighted ? theme.colorScheme.primary : theme.colorScheme.onSurface;
-    final targetOpacity = (!isDimmed || isHovered) ? highEmphasisOpacity : lowEmphasisOpacity;
-    return targetColor.withAlpha(targetOpacity);
+    final color = node.isHighlighted ? context.appColors.highlight : context.appColors.textPrimary;
+    return withEmphasis(color);
   }
 
   Color? getHighlightColor() {
-    final theme = Theme.of(context);
+    final colors = context.appColors;
 
-    if (node.isSelected) return theme.colorScheme.secondaryContainer;
+    if (node.isSelected) return colors.treeSelection;
 
-    if (isHovered) return theme.colorScheme.surfaceContainerHighest;
+    if (isHovered) return colors.hover;
 
     return null;
   }
 
+  // each indentation level, disclosure chevron and folder icon occupies one slot,
+  // so the guide of a folder lines up with the chevrons and icons of its children
   List<Widget> buildTree() {
-    final folderIcon = node.isExpanded ? folderOpenIcon : folderClosedIcon;
-    final iconColor = getContentColor();
+    final isFolderChild = node.parent?.isFolder ?? false;
+    final chevronIcon = node.isExpanded ? FontAwesomeIcons.angleDown : FontAwesomeIcons.angleRight;
+    final folderIcon = node.isExpanded ? FontAwesomeIcons.folderOpen : FontAwesomeIcons.folderClosed;
 
     return [
-      SizedBox(width: indentationLevel * indentationSize),
-      if (node.parent?.isFolder ?? false) Icon(folderItemIcon, size: 16, color: iconColor),
-      if (node.parent?.isFolder ?? false) const SizedBox(width: iconSpacing),
-      if (node.isFolder) Icon(folderIcon, size: iconSize, color: iconColor),
-      if (node.isFolder) const SizedBox(width: iconSpacing),
+      for (var i = 0; i < indentationLevel; i++) buildIndentationGuide(),
+      if (isFolderChild && node.children.isNotEmpty)
+        buildSlot(Icon(chevronIcon, size: iconSize, color: withEmphasis(context.appColors.textSecondary))),
+      if (isFolderChild && node.children.isEmpty) buildIndentationGuide(),
+      if (node.isFolder) buildSlot(Icon(folderIcon, size: iconSize, color: getContentColor())),
     ];
   }
 
-  Widget buildAnnotation() {
-    if (node.annotationColor == null) return const SizedBox();
+  Widget buildSlot(Widget icon) {
+    return SizedBox(
+      width: indentationSize,
+      child: Align(alignment: Alignment.centerLeft, child: icon),
+    );
+  }
 
-    if (node.annotationColor == Colors.transparent) return const SizedBox(width: annotationSize + 8);
+  Widget buildIndentationGuide() {
+    return SizedBox(
+      width: indentationSize,
+      height: TreeView.itemHeight,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          width: 1,
+          margin: const EdgeInsets.only(left: (iconSize - 1) / 2),
+          color: context.appColors.border,
+        ),
+      ),
+    );
+  }
+
+  Widget buildAnnotation() {
+    final annotationColor = node.annotationColor;
+
+    if (annotationColor == null) return const SizedBox();
+
+    if (annotationColor == Colors.transparent) return const SizedBox(width: annotationSlotSize + annotationSpacing);
 
     return Container(
       width: annotationSize,
       height: annotationSize,
-      margin: const EdgeInsets.only(right: 8),
+      margin: const EdgeInsets.only(
+        left: (annotationSlotSize - annotationSize) / 2,
+        right: (annotationSlotSize - annotationSize) / 2 + annotationSpacing,
+      ),
       decoration: BoxDecoration(
-        color: node.annotationColor?.withAlpha(isDimmed ? lowEmphasisOpacity : highEmphasisOpacity),
-        borderRadius: BorderRadius.all(Radius.circular(annotationSize)),
+        color: isDimmed ? annotationColor.withValues(alpha: lowEmphasisOpacity) : annotationColor,
+        shape: BoxShape.circle,
       ),
     );
   }
 
   Widget buildLabel() {
     final targetLabelStyle = node.isHighlighted ? highlightedLabelStyle : labelStyle;
-    final labelColor = getContentColor();
 
-    final labelFontWeight = node.isSelected ? FontWeightOptimizedForOperatingSystem.bold : null;
-
-    return Text(
-      node.label,
-      style: targetLabelStyle.copyWith(color: labelColor, fontWeight: labelFontWeight),
-    );
+    return Text(node.label, style: targetLabelStyle.copyWith(color: getContentColor()));
   }
 
   Widget buildHint() {
@@ -173,12 +198,10 @@ class TreeViewItemState<TContent> extends State<TreeViewItem<TContent>> {
 
     if (!showHint) return const SizedBox();
 
-    final theme = Theme.of(context);
-    final hintEmphasis = isHovered || node.isSelected;
-    final hintColor = theme.colorScheme.onSurface.withAlpha(hintEmphasis ? highEmphasisOpacity : lowEmphasisOpacity);
+    final isHintEmphasized = isHovered || node.isSelected;
+    final hintColor = context.appColors.textPrimary.withValues(alpha: isHintEmphasized ? 1 : lowEmphasisOpacity);
 
     return Flexible(
-      flex: 1,
       child: Padding(
         padding: const EdgeInsets.only(left: 16),
         child: Text(

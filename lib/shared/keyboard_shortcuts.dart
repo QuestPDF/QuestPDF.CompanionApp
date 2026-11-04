@@ -9,12 +9,19 @@ import '../areas/document_hierarchy/state/document_hierarchy_provider.dart';
 import '../areas/document_hierarchy/state/document_hierarchy_search_state.dart';
 import '../areas/document_hierarchy/state/document_layout_error_provider.dart';
 
+final toggleDocumentHierarchyShortcutLabel = Platform.isMacOS ? "⌘B" : "Ctrl+B";
+
 bool isTextInputActive() {
   final focusContext = FocusManager.instance.primaryFocus?.context;
 
   if (focusContext == null) return false;
 
   return focusContext.findAncestorWidgetOfExactType<EditableText>() != null;
+}
+
+// the shortcut modifier: Ctrl, and also Cmd on macOS
+bool isControlOrCommandPressed() {
+  return HardwareKeyboard.instance.isControlPressed || (Platform.isMacOS && HardwareKeyboard.instance.isMetaPressed);
 }
 
 bool isCanvasNavigationByKeyboardShortcutsAvailable() {
@@ -60,8 +67,7 @@ class KeyboardShortcutsState extends State<KeyboardShortcuts> {
   bool handleKeyInteraction(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
 
-    final isControlPressed =
-        HardwareKeyboard.instance.isControlPressed || (Platform.isMacOS && HardwareKeyboard.instance.isMetaPressed);
+    final isControlPressed = isControlOrCommandPressed();
 
     bool handleGlobalShortcuts() {
       if (kDebugMode && isControlPressed && event.physicalKey == PhysicalKeyboardKey.keyD) {
@@ -118,7 +124,7 @@ class KeyboardShortcutsState extends State<KeyboardShortcuts> {
         return true;
       }
 
-      if (isControlPressed && event.physicalKey == PhysicalKeyboardKey.keyW) {
+      if (isControlPressed && event.physicalKey == PhysicalKeyboardKey.keyB) {
         applicationStateProviderInstance.toggleDocumentHierarchyVisibility();
         return true;
       }

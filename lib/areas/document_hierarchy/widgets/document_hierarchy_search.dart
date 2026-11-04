@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/font_awesome_icons.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
 import '../state/document_hierarchy_search_state.dart';
 
 class DocumentHierarchySearch extends ConsumerStatefulWidget {
   const DocumentHierarchySearch({super.key});
 
   @override
-  _DocumentHierarchySearchState createState() => _DocumentHierarchySearchState();
+  ConsumerState<DocumentHierarchySearch> createState() => _DocumentHierarchySearchState();
 }
 
 class _DocumentHierarchySearchState extends ConsumerState<DocumentHierarchySearch> {
@@ -31,61 +33,58 @@ class _DocumentHierarchySearchState extends ConsumerState<DocumentHierarchySearc
 
   @override
   Widget build(BuildContext context) {
-    final searchProvider = ref.watch(documentHierarchySearchStateProvider);
+    final searchState = ref.watch(documentHierarchySearchStateProvider);
 
-    return Padding(
-      padding: const EdgeInsets.only(left: 12, top: 4, right: 4, bottom: 4),
-      child: buildPositionCardHeader(Theme.of(context), searchProvider),
-    );
-  }
+    final theme = Theme.of(context);
+    final colors = context.appColors;
 
-  Widget buildPositionCardHeader(ThemeData theme, DocumentHierarchySearchState searchState) {
-    final textColor = theme.colorScheme.onPrimaryContainer;
-    final disabledTextColor = theme.colorScheme.onPrimaryContainer.withAlpha(128);
-
-    final searchFieldStyle = theme.textTheme.bodyMedium?.copyWith(color: textColor);
-    final headerStyle = theme.textTheme.bodyMedium?.copyWith(color: textColor);
+    final searchFieldStyle = theme.textTheme.bodyMedium?.copyWith(color: colors.textPrimary);
+    final counterStyle = theme.textTheme.bodySmall?.copyWith(color: colors.textSecondary, fontFeatures: tabularFigures);
     final enablePositionButtons = searchState.searchResults.isNotEmpty;
 
-    return Row(
-      children: [
-        Icon(FontAwesomeIcons.search, color: textColor, size: 16),
-        const SizedBox(width: 12),
-        Flexible(
-          child: TextField(
-            focusNode: _focusNode,
-            style: searchFieldStyle,
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: const EdgeInsets.all(0),
-              hintText: "Search Phrase",
-              hintStyle: TextStyle(color: textColor.withAlpha(128)),
+    return Container(
+      height: AppSizes.barHeight,
+      padding: const EdgeInsets.only(left: 16, right: 8),
+      child: Row(
+        children: [
+          Icon(FontAwesomeIcons.search, color: colors.textSecondary, size: 16),
+          const SizedBox(width: 10),
+          Flexible(
+            child: TextField(
+              focusNode: _focusNode,
+              style: searchFieldStyle,
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                hintText: "Search elements",
+                hintStyle: TextStyle(color: colors.textMuted),
+              ),
+              onChanged: (x) => Future.microtask(() => searchState.update(x)),
             ),
-            onChanged: (x) => Future.microtask(() => searchState.update(x)),
           ),
-        ),
-        const SizedBox(width: 32),
-        if (searchState.showSearchCount)
-          Text("${searchState.searchResultIndex + 1} / ${searchState.searchResults.length}", style: headerStyle),
-        if (searchState.showSearchCount) const SizedBox(width: 8),
-        IconButton(
-          icon: Icon(FontAwesomeIcons.arrowUp, color: enablePositionButtons ? textColor : disabledTextColor, size: 16),
-          visualDensity: VisualDensity.compact,
-          disabledColor: Colors.red,
-          onPressed: enablePositionButtons ? () => searchState.changeCurrentSearchIndex(-1) : null,
-        ),
-        IconButton(
-          icon: Icon(FontAwesomeIcons.arrowDown, color: enablePositionButtons ? textColor : disabledTextColor, size: 16),
-          visualDensity: VisualDensity.compact,
-          onPressed: enablePositionButtons ? () => searchState.changeCurrentSearchIndex(1) : null,
-        ),
-        IconButton(
-          icon: Icon(FontAwesomeIcons.close, color: textColor, size: 16),
-          visualDensity: VisualDensity.compact,
-          onPressed: searchState.reset,
-        ),
-      ],
+          const SizedBox(width: 16),
+          if (searchState.showSearchCount) ...[
+            Text("${searchState.searchResultIndex + 1} / ${searchState.searchResults.length}", style: counterStyle),
+            const SizedBox(width: 8),
+          ],
+          IconButton(
+            icon: const Icon(FontAwesomeIcons.arrowUp, size: 16),
+            visualDensity: VisualDensity.compact,
+            onPressed: enablePositionButtons ? () => searchState.changeCurrentSearchIndex(-1) : null,
+          ),
+          IconButton(
+            icon: const Icon(FontAwesomeIcons.arrowDown, size: 16),
+            visualDensity: VisualDensity.compact,
+            onPressed: enablePositionButtons ? () => searchState.changeCurrentSearchIndex(1) : null,
+          ),
+          IconButton(
+            icon: const Icon(FontAwesomeIcons.close, size: 16),
+            visualDensity: VisualDensity.compact,
+            onPressed: searchState.reset,
+          ),
+        ],
+      ),
     );
   }
 }
