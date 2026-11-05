@@ -102,6 +102,15 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
   }
 
   bool handleKeyInteraction(KeyEvent event) {
+    const cursorModifierKeys = [
+      LogicalKeyboardKey.controlLeft,
+      LogicalKeyboardKey.controlRight,
+      LogicalKeyboardKey.altLeft,
+      LogicalKeyboardKey.altRight,
+    ];
+
+    if (event is! KeyRepeatEvent && cursorModifierKeys.contains(event.logicalKey)) setState(() {});
+
     final isControlPressed = isControlOrCommandPressed();
 
     // navigation: key repeats keep panning and zooming

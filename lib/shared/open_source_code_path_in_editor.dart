@@ -11,9 +11,9 @@ Future<void> openSourceCodePathInEditor(CodeEditor editor, String filePath, int 
   final shell = Shell(throwOnError: true, runInShell: true);
 
   final command = switch (editor) {
-    CodeEditor.rider => 'rider --line $lineNumber $filePath',
-    CodeEditor.visualCode => 'code -g $filePath:$lineNumber',
-    CodeEditor.visualStudio => 'start devenv /Command "Edit.Goto $lineNumber" $filePath',
+    CodeEditor.rider => 'rider --line $lineNumber ${shellArgument(filePath)}',
+    CodeEditor.visualCode => 'code -g ${shellArgument('$filePath:$lineNumber')}',
+    CodeEditor.visualStudio => 'start devenv /Command "Edit.Goto $lineNumber" ${shellArgument(filePath)}',
   };
 
   await shell.run(command);
