@@ -10,6 +10,8 @@ class GenericExceptionStackFrame {
 
   GenericExceptionStackFrame(this.codeLocation, this.fileName, this.lineNumber);
 
+  bool get hasSourceCode => fileName != null && lineNumber != null;
+
   factory GenericExceptionStackFrame.fromJson(Map<String, dynamic> json) => _$GenericExceptionStackFrameFromJson(json);
 
   Map<String, dynamic> toJson() => _$GenericExceptionStackFrameToJson(this);

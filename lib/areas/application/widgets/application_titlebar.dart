@@ -1,59 +1,75 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:questpdf_companion/areas/application/widgets/application_titlebar_complex_document_warning.dart';
-import 'package:questpdf_companion/areas/application/widgets/application_titlebar_features.dart';
-import 'package:questpdf_companion/areas/application/widgets/application_titlebar_layout_error.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../state/application_state_provider.dart';
-import 'application_titlebar_macos_automatic_launch.dart';
 import 'application_titlebar_hot_reload_warning.dart';
 import 'application_titlebar_license.dart';
 import 'application_titlebar_logo.dart';
-import 'application_titlebar_settings.dart';
 import 'application_titlebar_update_available.dart';
 import 'application_titlebar_window_buttons.dart';
 
-class ApplicationTitlebar extends ConsumerWidget {
+class ApplicationTitlebar extends ConsumerStatefulWidget {
   const ApplicationTitlebar({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ApplicationTitlebar> createState() => _ApplicationTitlebarState();
+}
+
+class _ApplicationTitlebarState extends ConsumerState<ApplicationTitlebar> with WindowListener {
+  // macOS hides its native window buttons in full screen, so the bar should not leave room for them
+  bool isFullScreen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    windowManager.isFullScreen().then(_setFullScreen);
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowEnterFullScreen() => _setFullScreen(true);
+
+  @override
+  void onWindowLeaveFullScreen() => _setFullScreen(false);
+
+  void _setFullScreen(bool value) {
+    if (!mounted || isFullScreen == value) return;
+    setState(() => isFullScreen = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentMode = ref.watch(applicationStateProvider.select((x) => x.currentMode));
+    final usesNativeWindowButtons = defaultTargetPlatform == TargetPlatform.macOS;
 
-    List<Widget> build() {
-      if (currentMode == ApplicationMode.welcomeScreen) {
-        return [
-          const SizedBox(width: 12),
-          const ApplicationTitlebarLogo(),
-          const Spacer(),
-          const ApplicationTitlebarMacOsAutomaticLaunch(),
-          const ApplicationTitlebarUpdateAvailable(),
-          const ApplicationTitlebarFeatures(),
-          const ApplicationTitlebarSettings(),
-          SizedBox(height: 24, child: VerticalDivider(width: 32)),
-          const ApplicationTitlebarWindowButtons(),
-          const SizedBox(width: 6),
-        ];
-      }
+    // leaves room for the native window buttons on macOS
+    final leadingInset = usesNativeWindowButtons && !isFullScreen ? 90.0 : 12.0;
 
-      return [
-        const SizedBox(width: 12),
+    final trailing = usesNativeWindowButtons
+        ? const [SizedBox(width: 16)]
+        : const [SizedBox(width: 12), ApplicationTitlebarWindowButtons()];
+
+    return Row(
+      children: [
+        SizedBox(width: leadingInset),
         const ApplicationTitlebarLogo(),
         const Spacer(),
-        const ApplicationTitlebarLayoutError(),
-        const ApplicationTitlebarHotReloadWarning(),
-        const ApplicationTitlebarComplexDocumentWarning(),
-        const ApplicationTitlebarLicense(),
-        const ApplicationTitlebarMacOsAutomaticLaunch(),
-        const ApplicationTitlebarUpdateAvailable(),
-        const ApplicationTitlebarFeatures(),
-        const ApplicationTitlebarSettings(),
-        SizedBox(height: 24, child: VerticalDivider(width: 32)),
-        const ApplicationTitlebarWindowButtons(),
-        const SizedBox(width: 6),
-      ];
-    }
-
-    return Row(children: build());
+        // the welcome screen lists an available update in its own menu
+        if (currentMode != ApplicationMode.welcomeScreen) ...const [
+          ApplicationTitlebarHotReloadWarning(),
+          ApplicationTitlebarLicense(),
+          ApplicationTitlebarUpdateAvailable(),
+        ],
+        ...trailing,
+      ],
+    );
   }
 }

@@ -40,21 +40,17 @@ class CommunicationService {
     Timer.periodic(const Duration(milliseconds: 1000), (x) => _checkConnection());
   }
 
-  Future tryToStartTheServer(int port) async {
+  Future<void> tryToStartTheServer(int port) async {
     try {
       await startServer(port);
     } catch (e) {
-      applicationStateProviderInstance.changeCommunicationStatus(CommunicationStatus.error);
+      // e.g. the port is already in use; another one can be chosen in the settings
     }
   }
 
-  Future startServer(int port) async {
+  Future<void> startServer(int port) async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
-    applicationStateProviderInstance.changeCommunicationStatus(CommunicationStatus.active);
-
-    await for (HttpRequest request in server!) {
-      _handleRequest(request);
-    }
+    server!.listen(_handleRequest);
   }
 
   Future stopServer() async {
@@ -65,7 +61,10 @@ class CommunicationService {
   void _checkConnection() {
     if (_lastCommunication == null) return;
 
-    if (DateTime.now().difference(_lastCommunication!).inSeconds < 1) return;
+    // the library notifies about its presence every 250 ms; a much longer silence is tolerated,
+    // so the content stays displayed while the application restarts,
+    // e.g. when dotnet watch rebuilds it after a code change that cannot be hot reloaded
+    if (DateTime.now().difference(_lastCommunication!).inSeconds < 5) return;
 
     _lastCommunication = null;
     applicationStateProviderInstance.changeMode(ApplicationMode.welcomeScreen);
@@ -191,7 +190,6 @@ class CommunicationService {
     documentLayoutErrorProviderInstance.update();
 
     applicationStateProviderInstance.changeMode(ApplicationMode.documentPreview);
-    applicationStateProviderInstance.checkIfDisplayComplexDocumentWarningBasedOnJsonLength(body.length);
     applicationStateProviderInstance.setDocumentAsHotReloaded(documentStructure.isDocumentHotReloaded);
 
     request.response.statusCode = HttpStatus.ok;

@@ -3,56 +3,44 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../shared/visual_elements.dart';
 import '../models/document_hierarchy_element.dart';
 import '../models/page_location.dart';
 import 'document_layout_error_provider.dart';
-
-class HierarchyViewItem {
-  DocumentHierarchyElement element;
-  int nesting;
-
-  HierarchyViewItem(this.element, this.nesting);
-}
 
 final documentHierarchyProviderInstance = DocumentHierarchyState();
 final documentHierarchyProvider = ChangeNotifierProvider((ref) => documentHierarchyProviderInstance);
 
 class DocumentHierarchyState extends ChangeNotifier {
-  DocumentHierarchyElement? state;
+  DocumentHierarchyElement? root;
   DocumentHierarchyElement? selectedElement;
   int? selectedElementPageLocationIndex;
 
-  void setHierarchy(DocumentHierarchyElement newState) {
-    updateDocumentStructure(newState);
-    _expandClosestChildrenHelper(newState);
+  void setHierarchy(DocumentHierarchyElement newRoot) {
+    _linkParents(newRoot);
+    _expandClosestChildrenHelper(newRoot);
 
-    state = newState;
+    root = newRoot;
     _expandDocumentContentHelper();
     selectedElement = null;
 
     notifyListeners();
   }
 
-  void updateDocumentStructure(DocumentHierarchyElement item) {
+  void _linkParents(DocumentHierarchyElement item) {
     for (final element in item.children) {
       element.parent = item;
-      updateDocumentStructure(element);
+      _linkParents(element);
     }
   }
 
   void _expandDocumentContentHelper() {
-    if (state == null) return;
+    if (root == null) return;
 
-    final documentContent = state!.children.firstOrNullWhere(
+    final documentContent = root!.children.firstOrNullWhere(
       (x) => x.properties.where((y) => y.value == "Content").isNotEmpty,
     );
 
     if (documentContent != null) _expandChildrenSmartHelper(documentContent);
-  }
-
-  int _getElementChildrenCount(DocumentHierarchyElement item) {
-    return 1 + item.children.map(_getElementChildrenCount).sum();
   }
 
   void _expandClosestChildrenHelper(DocumentHierarchyElement item) {
@@ -64,19 +52,19 @@ class DocumentHierarchyState extends ChangeNotifier {
   }
 
   void _expandAllChildrenHelper(DocumentHierarchyElement item) {
-    item.isExpanded = true;
-    item.children.forEach(_expandAllChildrenHelper);
+    for (final element in item.selfAndDescendants) {
+      element.isExpanded = true;
+    }
   }
 
   void _collapseAllChildrenHelper(DocumentHierarchyElement item) {
-    item.isExpanded = item.isExpandable ? false : true;
-    item.children.forEach(_collapseAllChildrenHelper);
+    for (final element in item.selfAndDescendants) {
+      element.isExpanded = !element.isExpandable;
+    }
   }
 
   void _expandChildrenSmartHelper(DocumentHierarchyElement item) {
-    final childrenCount = _getElementChildrenCount(item);
-
-    if (childrenCount < 32) {
+    if (item.selfAndDescendants.length < 32) {
       _expandAllChildrenHelper(item);
     } else {
       _expandClosestChildrenHelper(item);
@@ -88,18 +76,6 @@ class DocumentHierarchyState extends ChangeNotifier {
       element.isExpanded = true;
       element = element.parent;
     }
-  }
-
-  void expandVisibleElements(List<PageLocation> visibleLocations) {
-    traverse(DocumentHierarchyElement element) {
-      element.isExpanded = element.isVisibleOn(visibleLocations);
-      element.children.forEach(traverse);
-    }
-
-    if (state == null) return;
-
-    traverse(state!);
-    notifyListeners();
   }
 
   void setSelectedElement(DocumentHierarchyElement? newState) {
@@ -122,13 +98,16 @@ class DocumentHierarchyState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setSelectedElementAndFocusOnIt(DocumentHierarchyElement? newState) {
-    if (newState == selectedElement) return;
+  // selects the element and resets the expansion of its subtree, so the tree shows it with its closest children
+  void setSelectedElementAndFocusOnIt(DocumentHierarchyElement element) {
+    if (element == selectedElement) return;
 
-    setSelectedElement(newState);
-    _collapseAllChildrenHelper(selectedElement!);
-    _expandToShowElementHelper(selectedElement!);
-    _expandChildrenSmartHelper(selectedElement!);
+    selectedElement = element;
+    selectedElementPageLocationIndex = 0;
+
+    _collapseAllChildrenHelper(element);
+    _expandToShowElementHelper(element);
+    _expandChildrenSmartHelper(element);
     notifyListeners();
   }
 
@@ -141,112 +120,70 @@ class DocumentHierarchyState extends ChangeNotifier {
   }
 
   void findPreviewClickedElement(int pageNumber, double x, double y) {
-    if (state == null) return;
+    if (root == null) return;
 
-    // find all clicked elements
-    final clickedPosition = PageLocation.fromPLTRB(pageNumber, x, y, x, y);
-    final List<DocumentHierarchyElement> candidates = [];
-
-    void traverse(DocumentHierarchyElement node) {
-      final isLeaf = node.children.isEmpty;
-      final isVisual = visualElementTypes.contains(node.elementType);
-      final isClicked = node.pageLocations.any((pageLocation) => pageLocation.intersects(clickedPosition));
-
-      if ((isLeaf || isVisual) && isClicked) {
-        candidates.add(node);
-      }
-
-      node.children.forEach(traverse);
-    }
-
-    traverse(state!);
-
-    // find smallest element
-    final el = candidates
-        .flatMap(
+    // the smallest leaf or visual element under the pointer, together with the page location that was clicked
+    final clicked = root!.selfAndDescendants
+        .where((node) => node.children.isEmpty || node.isVisual)
+        .expand(
           (element) => element.pageLocations
-              .mapIndexed((index, pageLocation) => (element: element, pageLocation: pageLocation, index: index))
-              .where((x) => x.pageLocation.intersects(clickedPosition)),
+              .mapIndexed((index, location) => (element: element, location: location, index: index))
+              .where((candidate) => candidate.location.contains(pageNumber, x, y)),
         )
-        .toList();
+        .minBy((candidate) => candidate.location.area);
 
-    final smallestElement = el.minBy((x) => x.pageLocation.area)!;
+    if (clicked == null) return;
 
-    selectedElement = smallestElement.element;
-    selectedElementPageLocationIndex = smallestElement.index;
-    _collapseAllChildrenHelper(state!);
+    selectedElement = clicked.element;
+    selectedElementPageLocationIndex = clicked.index;
+    _collapseAllChildrenHelper(root!);
     _expandToShowElementHelper(selectedElement!);
     _expandChildrenSmartHelper(selectedElement!);
     notifyListeners();
   }
 
   List<LayoutError> listLayoutErrors() {
-    if (state == null) return [];
+    if (root == null) return [];
 
-    List<LayoutError> result = [];
-
-    void traverse(DocumentHierarchyElement element) {
-      element.layoutErrorMeasurements
-          .where((x) => x.isLayoutErrorRootCause)
-          .map((x) => LayoutError(element, x))
-          .forEach(result.add);
-
-      element.children.forEach(traverse);
-    }
-
-    traverse(state!);
-    return result.toList();
+    return root!.selfAndDescendants
+        .expand(
+          (element) =>
+              element.layoutErrorMeasurements.where((x) => x.isLayoutErrorRootCause).map((x) => LayoutError(element, x)),
+        )
+        .toList();
   }
 
+  // the closest ancestor (or the element itself) that knows where it was declared
   SourceCodeLocation? findSourceCodeLocationOf(DocumentHierarchyElement? element) {
-    if (element == null) return null;
-
-    while (true) {
-      if (element == null) return null;
-
-      final sourceCodePath = element.sourceCodeDeclarationPath;
+    for (var current = element; current != null; current = current.parent) {
+      final sourceCodePath = current.sourceCodeDeclarationPath;
 
       if (sourceCodePath != null) {
-        return SourceCodeLocation(
-          isAccurate: true,
-          filePath: sourceCodePath.filePath,
-          lineNumber: sourceCodePath.lineNumber,
-        );
+        return SourceCodeLocation(filePath: sourceCodePath.filePath, lineNumber: sourceCodePath.lineNumber);
       }
 
-      if (element.elementType == "SourceCodePointer") {
-        final fileName = element.getProperty("FilePath");
-        final lineNumber = int.tryParse(element.getProperty("LineNumber"));
+      if (current.elementType == "SourceCodePointer") {
+        final filePath = current.getProperty("FilePath");
+        final lineNumber = int.tryParse(current.getProperty("LineNumber"));
 
-        if (fileName.isNullOrEmpty) return null;
+        if (filePath.isEmpty || lineNumber == null) return null;
 
-        return SourceCodeLocation(isAccurate: false, filePath: fileName, lineNumber: lineNumber!);
+        return SourceCodeLocation(filePath: filePath, lineNumber: lineNumber);
       }
-
-      element = element.parent;
     }
+
+    return null;
   }
 
   DocumentHierarchyElement? findClickableLink(int pageNumber, double x, double y) {
-    if (state == null) return null;
+    if (root == null) return null;
 
-    final clickedPosition = PageLocation.fromPLTRB(pageNumber, x, y, x, y);
-    DocumentHierarchyElement? result;
-
-    void traverse(DocumentHierarchyElement node) {
+    return root!.selfAndDescendants.firstOrNullWhere((node) {
       final isLink = node.elementType == "SectionLink" || node.elementType == "Hyperlink";
-      final isClicked = node.pageLocations.any((pageLocation) => pageLocation.intersects(clickedPosition));
+      final isClicked = node.pageLocations.any((location) => location.contains(pageNumber, x, y));
 
-      if (isLink && isClicked) {
-        result = node;
-        return;
-      }
-
-      node.children.forEach(traverse);
-    }
-
-    traverse(state!);
-    return result;
+      return isLink && isClicked;
+    });
   }
 
   void openClickableLink(DocumentHierarchyElement element) {
@@ -262,29 +199,12 @@ class DocumentHierarchyState extends ChangeNotifier {
       launchUrl(Uri.parse(url));
     }
 
-    DocumentHierarchyElement? findSectionOfName(String targetSectionName) {
-      DocumentHierarchyElement? result;
-
-      void traverse(DocumentHierarchyElement node) {
-        if (node.elementType == "Section") {
-          final sectionName = node.getProperty("SectionName");
-
-          if (sectionName == targetSectionName) {
-            result = node;
-            return;
-          }
-        }
-
-        node.children.forEach(traverse);
-      }
-
-      traverse(state!);
-      return result;
-    }
-
     void openSectionLink(DocumentHierarchyElement element) {
       final sectionName = element.getProperty("SectionName");
-      final targetSection = findSectionOfName(sectionName);
+
+      final targetSection = root!.selfAndDescendants.firstOrNullWhere(
+        (node) => node.elementType == "Section" && node.getProperty("SectionName") == sectionName,
+      );
 
       if (targetSection == null) return;
 
@@ -300,9 +220,8 @@ class DocumentHierarchyState extends ChangeNotifier {
 }
 
 class SourceCodeLocation {
-  final bool isAccurate;
   final String filePath;
   final int lineNumber;
 
-  SourceCodeLocation({required this.isAccurate, required this.filePath, required this.lineNumber});
+  SourceCodeLocation({required this.filePath, required this.lineNumber});
 }

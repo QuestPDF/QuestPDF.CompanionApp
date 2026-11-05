@@ -3,35 +3,35 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 
-final applicationVersionProviderInstance = ApplicationStateProvider();
+import '../../../shared/questpdf_urls.dart';
+
+final applicationVersionProviderInstance = ApplicationVersionState();
 final applicationVersionProvider = ChangeNotifierProvider((ref) => applicationVersionProviderInstance);
 
-class ApplicationStateProvider extends ChangeNotifier {
+class ApplicationVersionState extends ChangeNotifier {
   ApplicationVersion? currentApplicationVersion;
   ApplicationVersion? latestApplicationVersion;
 
   bool get isUpdateAvailable => latestApplicationVersion?.isNewerThan(currentApplicationVersion) ?? false;
 
-  ApplicationStateProvider() {
-    checkApplicationVersion();
-    checkLatestApplicationVersion();
+  ApplicationVersionState() {
+    loadCurrentApplicationVersion();
+    fetchLatestApplicationVersion();
   }
 
-  void checkApplicationVersion() async {
-    final PackageInfo info = await PackageInfo.fromPlatform();
+  Future<void> loadCurrentApplicationVersion() async {
+    final info = await PackageInfo.fromPlatform();
     currentApplicationVersion = ApplicationVersion.parse(info.version);
     notifyListeners();
   }
 
-  void checkLatestApplicationVersion() async {
-    final url = Uri.parse('http://questpdf.com/companion/latest-version');
-
+  Future<void> fetchLatestApplicationVersion() async {
     try {
-      final response = await http.get(url);
+      final response = await http.get(Uri.parse(QuestPdfUrls.companionLatestVersion));
       latestApplicationVersion = ApplicationVersion.parse(response.body);
       notifyListeners();
     } catch (e) {
-      return null;
+      // offline or an unexpected response, so no update is shown
     }
   }
 }
@@ -39,11 +39,11 @@ class ApplicationStateProvider extends ChangeNotifier {
 class ApplicationVersion {
   final int major;
   final int minor;
-  final int path;
+  final int patch;
 
-  String get text => '$major.$minor.$path';
+  String get text => '$major.$minor.$patch';
 
-  ApplicationVersion(this.major, this.minor, this.path);
+  ApplicationVersion(this.major, this.minor, this.patch);
 
   static ApplicationVersion parse(String version) {
     final parts = version.split('.');
@@ -55,8 +55,7 @@ class ApplicationVersion {
 
     if (major != other.major) return major > other.major;
     if (minor != other.minor) return minor > other.minor;
-    if (path != other.path) return path > other.path;
 
-    return false;
+    return patch > other.patch;
   }
 }

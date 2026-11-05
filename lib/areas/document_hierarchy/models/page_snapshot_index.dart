@@ -4,8 +4,8 @@ part 'page_snapshot_index.g.dart';
 
 @JsonSerializable()
 class PageSnapshotIndex {
-  int pageIndex;
-  int zoomLevel;
+  final int pageIndex;
+  final int zoomLevel;
 
   PageSnapshotIndex(this.pageIndex, this.zoomLevel);
 

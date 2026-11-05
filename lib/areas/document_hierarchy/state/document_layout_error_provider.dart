@@ -25,6 +25,14 @@ class DocumentLayoutErrorProvider extends ChangeNotifier {
 
   LayoutError get currentlySelectedLayoutError => layoutErrors[currentlySelectedLayoutErrorIndex];
 
+  // how the element was measured on the page of the selected layout error
+  DocumentHierarchyElementLayoutErrorMeasurement? findMeasurementOf(DocumentHierarchyElement element) {
+    if (!containsLayoutError) return null;
+
+    final pageNumber = currentlySelectedLayoutError.measurement.pageNumber;
+    return element.layoutErrorMeasurements.where((x) => x.pageNumber == pageNumber).firstOrNull;
+  }
+
   void update() {
     layoutErrors = documentHierarchyProviderInstance.listLayoutErrors();
     currentlySelectedLayoutErrorIndex = 0;

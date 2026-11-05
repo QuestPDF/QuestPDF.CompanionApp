@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'dart:ui';
@@ -11,6 +10,8 @@ import 'package:flutter/services.dart';
 
 import '../../../shared/keyboard_shortcuts.dart';
 import '../../../shared/open_source_code_path_in_editor.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
 import '../../application/state/application_state_provider.dart';
 import '../../document_hierarchy/models/document_hierarchy_element.dart';
 import '../../document_hierarchy/models/document_structure_page_size.dart';
@@ -54,7 +55,7 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
   Offset flingDirection = Offset.zero;
   double flingLastDistance = 0;
 
-  num cacheRefreshId = 0;
+  int cacheRefreshId = 0;
   List<PageDrawingPlan> pagePositions = [];
   double totalDocumentHeight = 0;
   double totalDocumentWidth = 0;
@@ -74,7 +75,11 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
 
   List<DocumentStructurePageSize> get pages => widget.pages;
 
-  ui.Rect get renderBox => (context.findRenderObject() as RenderBox?)?.paintBounds ?? ui.Rect.zero;
+  // the canvas in screen pixels; the document is drawn with its horizontal centre at the top centre of the viewport
+  Rect get viewport => (context.findRenderObject() as RenderBox?)?.paintBounds ?? Rect.zero;
+
+  // the part of the document inside the viewport, in document coordinates
+  Rect get visibleBox => ((-translate - viewport.topCenter) / scale) & (viewport.size / scale);
 
   PointerHoverInteraction pointerHoverInteraction = PointerHoverInteraction.none;
 
@@ -106,87 +111,72 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
 
     if (event is! KeyRepeatEvent && cursorModifierKeys.contains(event.logicalKey)) setState(() {});
 
-    // shortcut: zoom on page
-    final isControlPressed =
-        HardwareKeyboard.instance.isControlPressed || (Platform.isMacOS && HardwareKeyboard.instance.isMetaPressed);
+    final isControlPressed = isControlOrCommandPressed();
 
-    if (isCanvasNavigationByKeyboardShortcutsAvailable() &&
-        event is KeyDownEvent &&
-        isControlPressed &&
-        event.physicalKey == PhysicalKeyboardKey.keyE) {
-      zoomOnPage();
-      return true;
+    // navigation: key repeats keep panning and zooming
+    if (isCanvasNavigationByKeyboardShortcutsAvailable() && event is! KeyUpEvent) {
+      if (isControlPressed) {
+        if (event is KeyDownEvent && event.physicalKey == PhysicalKeyboardKey.keyE) {
+          zoomOnPage();
+          return true;
+        }
+
+        if (zoomInKeys.contains(event.physicalKey)) {
+          zoomBy(keyboardZoomSensitivity, viewportCenter);
+          return true;
+        }
+
+        if (zoomOutKeys.contains(event.physicalKey)) {
+          zoomBy(1 / keyboardZoomSensitivity, viewportCenter);
+          return true;
+        }
+      } else {
+        final panDirection = keyboardPanDirection(event.logicalKey);
+
+        if (panDirection != null) {
+          final distance = HardwareKeyboard.instance.isShiftPressed ? keyboardPanShiftSensitivity : keyboardPanSensitivity;
+          panBy(panDirection * distance);
+          return true;
+        }
+      }
     }
 
-    // shortcut: zoom in and out
-    if (isCanvasNavigationByKeyboardShortcutsAvailable() && event is! KeyUpEvent && isControlPressed) {
-      const zoomInKeys = [PhysicalKeyboardKey.equal, PhysicalKeyboardKey.numpadAdd];
-      const zoomOutKeys = [PhysicalKeyboardKey.minus, PhysicalKeyboardKey.numpadSubtract];
+    // tools: held down while hovering the canvas, released by any key up
+    if (areCanvasKeyboardToolInteractionsAvailable()) {
+      final interaction = event is KeyUpEvent
+          ? PointerHoverInteraction.none
+          : pointerHoverInteractionOf(event.physicalKey);
 
-      if (zoomInKeys.contains(event.physicalKey)) {
-        zoomBy(keyboardZoomSensitivity, viewportCenter);
+      if (interaction != null) {
+        if (pointerHoverInteraction != interaction) setState(() => pointerHoverInteraction = interaction);
         return true;
       }
-
-      if (zoomOutKeys.contains(event.physicalKey)) {
-        zoomBy(1 / keyboardZoomSensitivity, viewportCenter);
-        return true;
-      }
-    }
-
-    // shortcut: pan with arrow keys
-    Offset? findKeyboardPanDirection(LogicalKeyboardKey key) {
-      if (!isCanvasNavigationByKeyboardShortcutsAvailable()) return null;
-
-      if (key == LogicalKeyboardKey.arrowLeft) return const Offset(1, 0);
-
-      if (key == LogicalKeyboardKey.arrowRight) return const Offset(-1, 0);
-
-      if (key == LogicalKeyboardKey.arrowUp) return const Offset(0, 1);
-
-      if (key == LogicalKeyboardKey.arrowDown) return const Offset(0, -1);
-
-      return null;
-    }
-
-    if (isCanvasNavigationByKeyboardShortcutsAvailable() && event is! KeyUpEvent && !isControlPressed) {
-      final panDirection = findKeyboardPanDirection(event.logicalKey);
-
-      final modifier = HardwareKeyboard.instance.isShiftPressed ? keyboardPanShiftSensitivity : keyboardPanSensitivity;
-
-      if (panDirection != null) {
-        panBy(panDirection * modifier);
-        return true;
-      }
-    }
-
-    // shortcut: pointer interactions
-    PointerHoverInteraction? findBestInteraction() {
-      if (event is KeyUpEvent) return PointerHoverInteraction.none;
-
-      if (event.physicalKey == PhysicalKeyboardKey.digit1) return PointerHoverInteraction.zoom;
-
-      if (event.physicalKey == PhysicalKeyboardKey.digit2) return PointerHoverInteraction.showPosition;
-
-      if (event.physicalKey == PhysicalKeyboardKey.digit3) return PointerHoverInteraction.measureVertical;
-
-      if (event.physicalKey == PhysicalKeyboardKey.digit4) return PointerHoverInteraction.measureHorizontal;
-
-      return null;
-    }
-
-    final bestInteraction = findBestInteraction();
-
-    if (areCanvasKeyboardToolInteractionsAvailable() && bestInteraction != null) {
-      if (pointerHoverInteraction != bestInteraction) {
-        pointerHoverInteraction = bestInteraction;
-        setState(() {});
-      }
-
-      return true;
     }
 
     return false;
+  }
+
+  static const zoomInKeys = [PhysicalKeyboardKey.equal, PhysicalKeyboardKey.numpadAdd];
+  static const zoomOutKeys = [PhysicalKeyboardKey.minus, PhysicalKeyboardKey.numpadSubtract];
+
+  static Offset? keyboardPanDirection(LogicalKeyboardKey key) {
+    return switch (key) {
+      LogicalKeyboardKey.arrowLeft => const Offset(1, 0),
+      LogicalKeyboardKey.arrowRight => const Offset(-1, 0),
+      LogicalKeyboardKey.arrowUp => const Offset(0, 1),
+      LogicalKeyboardKey.arrowDown => const Offset(0, -1),
+      _ => null,
+    };
+  }
+
+  static PointerHoverInteraction? pointerHoverInteractionOf(PhysicalKeyboardKey key) {
+    return switch (key) {
+      PhysicalKeyboardKey.digit1 => PointerHoverInteraction.zoom,
+      PhysicalKeyboardKey.digit2 => PointerHoverInteraction.showPosition,
+      PhysicalKeyboardKey.digit3 => PointerHoverInteraction.measureVertical,
+      PhysicalKeyboardKey.digit4 => PointerHoverInteraction.measureHorizontal,
+      _ => null,
+    };
   }
 
   void initNewDocument() {
@@ -224,11 +214,8 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
   List<PageDrawingPlan> getVisiblePages({double visibleBoxBufferFactor = 0}) {
     if (previewKey.currentContext == null) return [];
 
-    final visibleBoxTopLeft = (-translate - renderBox.topLeft / 2) / scale;
-    final visibleBoxSize = renderBox.size / scale;
-    final visibleBox = (visibleBoxTopLeft & visibleBoxSize).inflate(visibleBoxSize.height * visibleBoxBufferFactor);
-
-    return pagePositions.where((x) => !x.position.intersect(visibleBox).isEmpty).toList();
+    final box = visibleBox.inflate(visibleBox.height * visibleBoxBufferFactor);
+    return pagePositions.where((x) => x.position.overlaps(box)).toList();
   }
 
   List<PageDrawingPlan> planPagePositions() {
@@ -253,12 +240,10 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
   List<PageLocation> getVisiblePageFragments() {
     if (previewKey.currentContext == null) return [];
 
-    final visibleBoxTopLeft = (-translate - renderBox.topCenter) / scale;
-    final visibleBoxSize = renderBox.size / scale;
-    final visibleBox = visibleBoxTopLeft & visibleBoxSize;
+    final box = visibleBox;
 
-    final visiblePages = pagePositions
-        .map((x) => (page: x, intersection: x.position.intersect(visibleBox).shift(-x.position.topLeft)))
+    return pagePositions
+        .map((x) => (page: x, intersection: x.position.intersect(box).shift(-x.position.topLeft)))
         .where((x) => !x.intersection.isEmpty)
         .map(
           (x) => PageLocation(
@@ -270,13 +255,11 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
           ),
         )
         .toList();
-
-    return visiblePages;
   }
 
   void handleTranslateLimits() {
-    var minVerticalTranslate = -totalDocumentHeight * scale + renderBox.size.height;
-    final maxHorizontalOffset = (renderBox.size.width / 2 - totalDocumentWidth / 2 * scale).abs();
+    var minVerticalTranslate = -totalDocumentHeight * scale + viewport.size.height;
+    final maxHorizontalOffset = (viewport.size.width / 2 - totalDocumentWidth / 2 * scale).abs();
 
     translate = Offset(
       translate.dx.clamp(-maxHorizontalOffset, maxHorizontalOffset),
@@ -284,16 +267,16 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
     );
 
     // scale where entire document width is visible should be centered
-    final idealWidthScale = renderBox.size.width / totalDocumentWidth;
-    final idealHeightScale = renderBox.size.height / totalDocumentHeight;
+    final idealWidthScale = viewport.size.width / totalDocumentWidth;
+    final idealHeightScale = viewport.size.height / totalDocumentHeight;
 
     translate = Offset(
       idealWidthScale > scale ? 0 : translate.dx,
-      idealHeightScale > scale ? (renderBox.size.height - totalDocumentHeight * scale) / 2 : translate.dy,
+      idealHeightScale > scale ? (viewport.size.height - totalDocumentHeight * scale) / 2 : translate.dy,
     );
   }
 
-  Offset get viewportCenter => renderBox.size.center(Offset.zero);
+  Offset get viewportCenter => viewport.size.center(Offset.zero);
 
   void panBy(Offset delta) {
     setState(() {
@@ -330,7 +313,7 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
       handleScaleLimits();
 
       // keep the pivot stationary, based on the scale change that survived the limits
-      final viewportOrigin = Offset(renderBox.size.width / 2, 0);
+      final viewportOrigin = viewport.topCenter;
       final pivotInViewportCoordinates = pivot - viewportOrigin;
 
       translate += (pivotInViewportCoordinates - translate) * (1 - scale / oldScale);
@@ -382,16 +365,13 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
       if (clickableLink != null) documentHierarchyProviderInstance.openClickableLink(clickableLink);
     }
 
-    final isControlPressed =
-        HardwareKeyboard.instance.isControlPressed || (Platform.isMacOS && HardwareKeyboard.instance.isMetaPressed);
-
-    if (isControlPressed) {
+    if (isControlOrCommandPressed()) {
       Future(() {
         final location = documentHierarchyProviderInstance.findSourceCodeLocationOf(
           documentHierarchyProviderInstance.selectedElement,
         );
 
-        if (location == null) return;
+        if (location == null || !mounted) return;
 
         tryOpenSourceCodePathInEditor(
           context,
@@ -425,11 +405,11 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
     final pagePosition = pagePositions[pageNumber - 1];
 
     setState(() {
-      scale = min(renderBox.size.width / location.width, renderBox.size.height / location.height) / zoomScalePadding;
+      scale = min(viewport.size.width / location.width, viewport.size.height / location.height) / zoomScalePadding;
       scale = min(scale, maxZoom);
       translate = Offset(
         -(pagePosition.position.left + location.left + location.width / 2) * scale,
-        renderBox.size.height / 2 - (pagePosition.position.top + location.top + location.height / 2) * scale,
+        viewport.size.height / 2 - (pagePosition.position.top + location.top + location.height / 2) * scale,
       );
 
       handleScaleLimits();
@@ -458,15 +438,15 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
 
     final currentZoomLevel = calculateZoomLevelFromScale(scale, isHighResolution);
 
-    final neededImages = getVisiblePages(
-      visibleBoxBufferFactor: 1,
-    ).map((x) => PageSnapshotIndex(x.pageIndex, currentZoomLevel)).toList();
+    final neededImages = getVisiblePages(visibleBoxBufferFactor: 1)
+        .map((x) => PageSnapshotIndex(x.pageIndex, currentZoomLevel))
+        .toList();
 
     documentPreviewImageCacheStateInstance.updateNeededImages(neededImages);
   }
 
   void updateCursorLocation() {
-    final viewportOrigin = Offset(renderBox.size.width / 2, 0);
+    final viewportOrigin = viewport.topCenter;
 
     final cursorPositionInViewportCoordinates = (currentCursorPositionOnCanvas - viewportOrigin);
     final cursorPositionInDocumentCoordinates = (cursorPositionInViewportCoordinates - translate) / scale;
@@ -542,7 +522,10 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
           child: CustomPaint(
             key: previewKey,
             painter: DocumentPreviewPainter(
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              backgroundColor: context.appColors.canvas,
+              selectionVeilColor: Theme.of(context).brightness == Brightness.dark
+                  ? DocumentPreviewPainter.darkSelectionVeilColor
+                  : DocumentPreviewPainter.lightSelectionVeilColor,
               translate: translate,
               scale: scale,
               visiblePages: getVisiblePages(),
@@ -563,23 +546,22 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
 
     if (widget.selectedElement != null) return const SizedBox();
 
-    final doesPageCoverEntireHorizontalSpace = totalDocumentWidth * scale >= renderBox.size.width;
-    final isDocumentFullyVisible = totalDocumentHeight * scale <= renderBox.size.height;
+    final doesPageCoverEntireHorizontalSpace = totalDocumentWidth * scale >= viewport.size.width;
+    final isDocumentFullyVisible = totalDocumentHeight * scale <= viewport.size.height;
 
     if (doesPageCoverEntireHorizontalSpace || isDocumentFullyVisible) return const SizedBox();
 
     const scrollbarTrackPadding = 8.0;
     const minScrollbarHeight = 50.0;
 
-    final scrollbarTrackHeight = renderBox.size.height - scrollbarTrackPadding * 2 - minScrollbarHeight;
+    final scrollbarTrackHeight = viewport.size.height - scrollbarTrackPadding * 2 - minScrollbarHeight;
     final ratio = scrollbarTrackHeight / totalDocumentHeight / scale;
 
     final scrollbarStart = -translate.dy * ratio;
-    final scrollbarHeight = renderBox.size.height * ratio + minScrollbarHeight;
+    final scrollbarHeight = viewport.size.height * ratio + minScrollbarHeight;
 
-    final scrollbarColor = (scrollbarHover || scrollbarMove)
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.outline;
+    final isScrollbarActive = scrollbarHover || scrollbarMove;
+    final scrollbarColor = context.appColors.textPrimary.withAlpha(isScrollbarActive ? 100 : 64);
 
     return Positioned(
       right: 0,
@@ -595,16 +577,16 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
           onPointerMove: (event) {
             if (event.buttons == 0) return;
 
-            panBy(-ui.Offset(0, event.localDelta.dy) / ratio);
+            panBy(Offset(0, -event.localDelta.dy / ratio));
           },
           child: MouseRegion(
             cursor: (scrollbarHover || scrollbarMove) ? SystemMouseCursors.click : SystemMouseCursors.basic,
             onEnter: (_) => setState(() => scrollbarHover = true),
             onExit: (_) => setState(() => scrollbarHover = false),
             child: Container(
-              width: 8,
+              width: isScrollbarActive ? 8 : 6,
               height: scrollbarHeight,
-              decoration: BoxDecoration(color: scrollbarColor, borderRadius: const BorderRadius.all(Radius.circular(8))),
+              decoration: BoxDecoration(color: scrollbarColor, borderRadius: const BorderRadius.all(Radius.circular(4))),
             ),
           ),
         ),
@@ -637,17 +619,30 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
       zoomOnElement(widget.selectedElement!, widget.selectedElementLocationIndex!);
     }
 
-    return Stack(
-      children: [
-        Positioned.fill(child: buildPreview()),
-        buildScrollbar(),
-      ],
+    return NotificationListener<SizeChangedLayoutNotification>(
+      onNotification: (_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(applyViewportChange);
+        });
+
+        return true;
+      },
+      child: SizeChangedLayoutNotifier(
+        child: Stack(
+          children: [
+            Positioned.fill(child: buildPreview()),
+            buildScrollbar(),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class DocumentPreviewPainter extends CustomPainter {
   final Color backgroundColor;
+  final Color selectionVeilColor;
   final Offset translate;
   final double scale;
   final List<PageDrawingPlan> visiblePages;
@@ -657,10 +652,19 @@ class DocumentPreviewPainter extends CustomPainter {
   final PointerLocation? pointerLocation;
   final DocumentManualMeasurementResult? measurement;
 
-  double get selectionThickness => 4 / scale;
+  // the page is always white, so overlays use the light palette regardless of the application theme
+  static final selectionColor = AppColors.light.highlight;
+
+  static const darkSelectionVeilColor = Color(0x66000000);
+  static const lightSelectionVeilColor = Color(0x66FFFFFF);
+
+  static const measurementColor = Color(0xFFF24822);
+
+  double get selectionThickness => 2 / scale;
 
   DocumentPreviewPainter({
     required this.backgroundColor,
+    required this.selectionVeilColor,
     required this.translate,
     required this.scale,
     required this.visiblePages,
@@ -672,8 +676,11 @@ class DocumentPreviewPainter extends CustomPainter {
   });
 
   @override
-  void paint(Canvas canvas, Size size) async {
+  void paint(Canvas canvas, Size size) {
     canvas.save();
+
+    // the title bar is painted before the preview, so zoomed and scrolled pages must not spill over it
+    canvas.clipRect(Offset.zero & size);
 
     drawBackground(canvas, size);
 
@@ -688,10 +695,7 @@ class DocumentPreviewPainter extends CustomPainter {
   }
 
   void drawBackground(Canvas canvas, Size drawingAreaSize) {
-    final backgroundPaint = Paint()..color = backgroundColor;
-    final drawingRect = Rect.fromLTWH(0, 0, drawingAreaSize.width, drawingAreaSize.height);
-
-    canvas.drawRect(drawingRect, backgroundPaint);
+    canvas.drawRect(Offset.zero & drawingAreaSize, Paint()..color = backgroundColor);
   }
 
   void drawMagnification(Canvas canvas, Size drawingAreaSize) {
@@ -713,7 +717,7 @@ class DocumentPreviewPainter extends CustomPainter {
     // magnifier
     final magnifierClipRect = RRect.fromRectAndRadius(
       Rect.fromCenter(center: Offset.zero, width: magnifierSize / scale, height: magnifierSize / scale),
-      ui.Radius.circular(12 / scale),
+      Radius.circular(12 / scale),
     );
     final magnifierClipPath = Path()..addRRect(magnifierClipRect);
 
@@ -742,7 +746,9 @@ class DocumentPreviewPainter extends CustomPainter {
   }
 
   void drawDocument(Canvas canvas) {
-    for (final page in visiblePages) drawPageContent(canvas, page);
+    for (final page in visiblePages) {
+      drawPageContent(canvas, page);
+    }
   }
 
   void drawPageContent(Canvas canvas, PageDrawingPlan page) {
@@ -783,11 +789,18 @@ class DocumentPreviewPainter extends CustomPainter {
     final rect = Rect.fromLTWH(0, 0, page.position.width, page.position.height);
     final path = Path()..addRect(rect);
 
-    final pageShadowColor = Colors.black.withAlpha(128);
-    canvas.drawShadow(path, pageShadowColor, 8 * scale, false);
+    final pageShadowColor = Colors.black.withAlpha(72);
+    canvas.drawShadow(path, pageShadowColor, 3 * scale, false);
 
-    // draw empty page
+    // draw empty page with a hairline edge that stays visible on dark backgrounds
     canvas.drawRect(rect, Paint()..color = Colors.white);
+
+    final pageBorderPaint = Paint()
+      ..color = Colors.black.withAlpha(24)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1 / scale;
+
+    canvas.drawRect(rect.inflate(0.5 / scale), pageBorderPaint);
 
     //draw page image
     final canvasTransform = canvas.getTransform();
@@ -831,23 +844,50 @@ class DocumentPreviewPainter extends CustomPainter {
   }
 
   void drawHighlightedElement(Canvas canvas, int pageIndex) {
-    const selectionBorderColor = Color.fromARGB(255, 0, 0, 0);
-    const selectionOpaqueColor = Color.fromARGB(64, 0, 0, 0);
-
     if (highlightedArea == null) return;
 
-    // draw opaque area
-    final opaquePath = getHighlightedAreas(pageIndex, true);
-    canvas.drawPath(opaquePath, Paint()..color = selectionOpaqueColor);
+    // fade the content surrounding the highlighted element
+    final veilPath = getHighlightedAreas(pageIndex, true);
+    canvas.drawPath(veilPath, Paint()..color = selectionVeilColor);
 
     // draw border
     final borderPaint = Paint()
-      ..color = selectionBorderColor
+      ..color = selectionColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = selectionThickness;
 
     final borderPath = getHighlightedAreas(pageIndex, false);
     canvas.drawPath(borderPath, borderPaint);
+  }
+
+  // the measurement overlays keep their stroke widths and labels in screen pixels, hence the divisions by the scale
+  Paint get measurementFillPaint => Paint()..color = measurementColor.withAlpha(48);
+
+  Paint get measurementStrokePaint => Paint()
+    ..color = measurementColor
+    ..strokeWidth = 1 / scale
+    ..style = PaintingStyle.stroke;
+
+  void drawMeasuredRect(Canvas canvas, Rect rect) {
+    canvas.drawRect(rect, measurementFillPaint);
+    canvas.drawRect(rect, measurementStrokePaint);
+  }
+
+  static const labelPadding = EdgeInsets.symmetric(horizontal: 10, vertical: 6);
+
+  Size labelSizeOf(Paragraph paragraph) => labelPadding.inflateSize(Size(paragraph.maxIntrinsicWidth, paragraph.height));
+
+  // [anchor] is in document space; the label keeps its size in screen pixels, with [labelTopLeft] relative to the anchor
+  void drawLabel(Canvas canvas, Paragraph paragraph, Offset anchor, Offset labelTopLeft) {
+    final labelRect = labelTopLeft & labelSizeOf(paragraph);
+    final labelPaint = Paint()..color = measurementColor;
+
+    canvas.save();
+    canvas.translate(anchor.dx, anchor.dy);
+    canvas.scale(1 / scale);
+    canvas.drawRRect(RRect.fromRectAndRadius(labelRect, const Radius.circular(AppRadius.small)), labelPaint);
+    canvas.drawParagraph(paragraph, labelTopLeft + labelPadding.topLeft);
+    canvas.restore();
   }
 
   void drawPointerMeasurement(Canvas canvas, int pageNumber) {
@@ -861,36 +901,20 @@ class DocumentPreviewPainter extends CustomPainter {
 
     if (measurementPoint == null) return;
 
-    // draw targetPoint
-    final targetPointPaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.fill;
+    canvas.drawCircle(measurementPoint.point, 5 / scale, Paint()..color = measurementColor);
+    drawMeasuredRect(canvas, measurementPoint.relatedRect);
 
-    final relatedRectanglePaint = Paint()
-      ..color = Colors.red.withAlpha(64)
-      ..style = PaintingStyle.fill;
-
-    final relatedRectangleBorderPaint = Paint()
-      ..color = Colors.red
-      ..strokeWidth = 1 / scale
-      ..style = PaintingStyle.stroke;
-
-    final targetPointRadius = 5 / scale;
-    canvas.drawCircle(measurementPoint.point, targetPointRadius, targetPointPaint);
-    canvas.drawRect(measurementPoint.relatedRect, relatedRectanglePaint);
-    canvas.drawRect(measurementPoint.relatedRect, relatedRectangleBorderPaint);
-
-    // build text
     final paragraphStyle = ParagraphStyle(
       textAlign: TextAlign.start,
+      fontFamily: appFontFamily,
       fontSize: 14,
       maxLines: 10,
-      height: 1.75,
+      height: 1.6,
       textHeightBehavior: TextHeightBehavior(applyHeightToFirstAscent: false, applyHeightToLastDescent: false),
     );
 
-    final labelStyle = ui.TextStyle(color: Colors.white.withAlpha(196));
-    final valueStyle = ui.TextStyle(color: Colors.white);
+    final labelStyle = ui.TextStyle(color: Colors.white.withAlpha(196), fontFeatures: tabularFigures);
+    final valueStyle = ui.TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontFeatures: tabularFigures);
 
     final paragraphBuilder = ParagraphBuilder(paragraphStyle);
     paragraphBuilder.pushStyle(labelStyle);
@@ -912,40 +936,18 @@ class DocumentPreviewPainter extends CustomPainter {
     paragraphBuilder.addText(measurementPoint.point.dy.toStringAsFixed(1));
 
     final paragraph = paragraphBuilder.build();
-    paragraph.layout(const ui.ParagraphConstraints(width: 300));
+    paragraph.layout(const ParagraphConstraints(width: 300));
 
-    final paragraphSize = Rect.fromLTWH(0, 0, paragraph.maxIntrinsicWidth, paragraph.height);
-
-    const paddingVertical = 8;
-    const paddingHorizontal = 12;
-
-    final tooltipArea = Rect.fromLTRB(
-      paragraphSize.left - paddingHorizontal,
-      paragraphSize.top - paddingVertical,
-      paragraphSize.right + paddingHorizontal,
-      paragraphSize.bottom + paddingVertical,
-    );
-
-    // draw label
-    final labelPaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.fill;
-
-    final center = Offset(pointerLocation!.x, pointerLocation!.y);
-
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.scale(1 / scale);
-    canvas.translate(paddingHorizontal * 3, -tooltipArea.height / 2);
-    canvas.drawRRect(ui.RRect.fromRectAndRadius(tooltipArea, const ui.Radius.circular(6)), labelPaint);
-    canvas.drawParagraph(paragraph, const ui.Offset(0, 0));
-    canvas.restore();
+    // to the right of the pointer, vertically centred on it
+    final pointer = Offset(pointerLocation!.x, pointerLocation!.y);
+    drawLabel(canvas, paragraph, pointer, Offset(20, -labelSizeOf(paragraph).height / 2));
   }
 
   void drawManualMeasurementResult(Canvas canvas, int pageNumber) {
     if (interactionType != PointerHoverInteraction.measureHorizontal &&
-        interactionType != PointerHoverInteraction.measureVertical)
+        interactionType != PointerHoverInteraction.measureVertical) {
       return;
+    }
 
     if (measurement == null) return;
 
@@ -956,109 +958,57 @@ class DocumentPreviewPainter extends CustomPainter {
     final isVertical = interactionType == PointerHoverInteraction.measureVertical;
     final axis = isVertical ? measurement!.vertical : measurement!.horizontal;
 
-    // draw related elements
-    void drawRelatedElement(Rect? rect) {
-      final relatedElementPaint = Paint()
-        ..color = Colors.red.withAlpha(64)
-        ..style = PaintingStyle.fill;
-
-      final relatedElementBorderPaint = Paint()
-        ..color = Colors.red
-        ..strokeWidth = 1 / scale
-        ..style = PaintingStyle.stroke;
-
-      if (rect == null) return;
-
-      canvas.drawRect(rect, relatedElementPaint);
-      canvas.drawRect(rect, relatedElementBorderPaint);
+    // the elements the line is measured between, drawn once when both ends touch the same element
+    for (final rect in {axis.relatedElementBegin, axis.relatedElementEnd}.nonNulls) {
+      drawMeasuredRect(canvas, rect);
     }
 
-    drawRelatedElement(axis.relatedElementBegin);
-
-    if (axis.relatedElementBegin != axis.relatedElementEnd) drawRelatedElement(axis.relatedElementEnd);
-
-    // draw measurement line and arms
+    // the measurement line with an arm across each end
     final linePaint = Paint()
-      ..color = Colors.red
+      ..color = measurementColor
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeWidth = 3.0 / scale;
 
-    final path = Path();
-    path.moveTo(axis.begin.dx, axis.begin.dy);
-    path.lineTo(axis.end.dx, axis.end.dy);
-
     final armSize = 10 / scale;
+    final arm = isVertical ? Offset(armSize, 0) : Offset(0, armSize);
 
-    if (measurement != null && isVertical) {
-      path.moveTo(axis.begin.dx - armSize, axis.begin.dy);
-      path.lineTo(axis.begin.dx + armSize, axis.begin.dy);
+    final path = Path()
+      ..moveTo(axis.begin.dx, axis.begin.dy)
+      ..lineTo(axis.end.dx, axis.end.dy);
 
-      path.moveTo(axis.end.dx - armSize, axis.end.dy);
-      path.lineTo(axis.end.dx + armSize, axis.end.dy);
-    }
-
-    if (measurement != null && !isVertical) {
-      path.moveTo(axis.begin.dx, axis.begin.dy - armSize);
-      path.lineTo(axis.begin.dx, axis.begin.dy + armSize);
-
-      path.moveTo(axis.end.dx, axis.end.dy - armSize);
-      path.lineTo(axis.end.dx, axis.end.dy + armSize);
+    for (final end in [axis.begin, axis.end]) {
+      path.moveTo(end.dx - arm.dx, end.dy - arm.dy);
+      path.lineTo(end.dx + arm.dx, end.dy + arm.dy);
     }
 
     canvas.drawPath(path, linePaint);
 
-    // create label
-    final paragraphStyle = ParagraphStyle(textAlign: TextAlign.start, fontSize: 14, maxLines: 1);
+    final paragraphStyle = ParagraphStyle(
+      textAlign: TextAlign.start,
+      fontFamily: appFontFamily,
+      fontSize: 14,
+      maxLines: 1,
+    );
+    final valueStyle = ui.TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontFeatures: tabularFigures);
 
     final paragraphBuilder = ParagraphBuilder(paragraphStyle);
-    paragraphBuilder.pushStyle(ui.TextStyle(color: Colors.white));
+    paragraphBuilder.pushStyle(valueStyle);
     paragraphBuilder.addText(axis.length.toStringAsFixed(1));
 
     final paragraph = paragraphBuilder.build();
-    paragraph.layout(const ui.ParagraphConstraints(width: 100));
+    paragraph.layout(const ParagraphConstraints(width: 100));
 
-    final paragraphSize = Rect.fromLTWH(0, 0, paragraph.maxIntrinsicWidth, paragraph.height);
+    // beside the line at the pointer: left of a vertical line, above a horizontal one
+    const labelGap = 10.0;
+    final labelSize = labelSizeOf(paragraph);
 
-    const paddingVertical = 8;
-    const paddingHorizontal = 12;
+    final anchor = isVertical ? Offset(axis.begin.dx, pointerLocation!.y) : Offset(pointerLocation!.x, axis.begin.dy);
+    final labelTopLeft = isVertical
+        ? Offset(-labelSize.width - labelGap, -labelSize.height / 2)
+        : Offset(-labelSize.width / 2, -labelSize.height - labelGap);
 
-    final tooltipArea = Rect.fromLTRB(
-      paragraphSize.left - paddingHorizontal,
-      paragraphSize.top - paddingVertical,
-      paragraphSize.right + paddingHorizontal,
-      paragraphSize.bottom + paddingVertical,
-    );
-
-    // offset label when measurement line is small compared to label
-    const labelOffsetAxis = 10;
-
-    var labelPosition = Offset.zero; // document space
-    var labelOffset = Offset.zero; // screen space
-
-    if (isVertical) {
-      labelPosition = Offset(axis.begin.dx, pointerLocation!.y);
-      labelOffset = Offset(-tooltipArea.width / 2 - labelOffsetAxis, 0);
-    }
-
-    if (!isVertical) {
-      labelPosition = Offset(pointerLocation!.x, axis.begin.dy);
-      labelOffset = Offset(0, -tooltipArea.height / 2 - labelOffsetAxis);
-    }
-
-    // draw label
-    final labelPaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.fill;
-
-    canvas.save();
-    canvas.translate(labelPosition.dx, labelPosition.dy);
-    canvas.scale(1 / scale);
-    canvas.translate(-paragraphSize.width / 2, -paragraph.height / 2);
-    canvas.translate(labelOffset.dx, labelOffset.dy);
-    canvas.drawRRect(ui.RRect.fromRectAndRadius(tooltipArea, const ui.Radius.circular(6)), labelPaint);
-    canvas.drawParagraph(paragraph, const ui.Offset(0, 0));
-    canvas.restore();
+    drawLabel(canvas, paragraph, anchor, labelTopLeft);
   }
 
   @override
@@ -1070,8 +1020,8 @@ class DocumentPreviewPainter extends CustomPainter {
 enum PointerHoverInteraction { none, zoom, showPosition, measureVertical, measureHorizontal }
 
 class PageDrawingPlan {
-  int pageIndex;
-  Rect position;
+  final int pageIndex;
+  final Rect position;
 
   PageDrawingPlan({required this.pageIndex, required this.position});
 }

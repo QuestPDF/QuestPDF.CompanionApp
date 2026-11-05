@@ -3,13 +3,6 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../models/document_hierarchy_element.dart';
 
-class HierarchyViewItem {
-  DocumentHierarchyElement element;
-  int nesting;
-
-  HierarchyViewItem(this.element, this.nesting);
-}
-
 final documentHierarchyHoveredElementProviderInstance = DocumentHierarchyHoveredElementProvider();
 final documentHierarchyHoveredElementProvider = ChangeNotifierProvider(
   (ref) => documentHierarchyHoveredElementProviderInstance,

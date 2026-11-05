@@ -16,11 +16,11 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2026.9.0
+version: 2026.11.0
 
 environment:
   sdk: '^3.13.0'
-  flutter: ">=3.47.5"
+  flutter: ">=3.47.9"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -37,10 +37,10 @@ dependencies:
   json_annotation: ^4.12.0
   flutter_riverpod: ^3.4.3
   multi_split_view: ^3.6.2
-  url_launcher: ^6.3.2
-  package_info_plus: ^10.2.1
-  process_run: ^1.3.6
-  shared_preferences: ^2.5.5
+  url_launcher: ^6.3.3
+  package_info_plus: ^10.2.2
+  process_run: ^1.4.2
+  shared_preferences: ^2.5.6
   dartx: ^1.2.0
   window_manager: ^0.5.2
   flutter_highlight: ^0.7.0
@@ -55,10 +55,10 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  build_runner: ^2.15.3
-  json_serializable: ^6.14.1
+  build_runner: ^2.17.1
+  json_serializable: ^6.15.2
   flutter_launcher_icons: ^0.14.4
-  fastforge: ^0.6.12
+  fastforge: ^0.6.13
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -74,9 +74,22 @@ flutter:
   assets:
     - assets/questpdf-logo-light.png
     - assets/questpdf-logo-dark.png
+    - assets/grain.png
     - assets/JetBrainsMono.ttf
+    - assets/fonts/Inter-LICENSE.txt
 
   fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+
     - family: JetBrains Mono
       fonts:
         - asset: assets/JetBrainsMono.ttf

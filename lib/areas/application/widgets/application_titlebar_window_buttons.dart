@@ -1,42 +1,57 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:questpdf_companion/shared/font_awesome_icons.dart';
 import 'package:window_manager/window_manager.dart';
 
-class ApplicationTitlebarWindowButtons extends ConsumerWidget {
+import '../../../shared/font_awesome_icons.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme.dart';
+
+class ApplicationTitlebarWindowButtons extends StatelessWidget {
   const ApplicationTitlebarWindowButtons({super.key});
 
+  // full-height rectangular caption buttons, following the Windows 11 convention
+  static const double buttonWidth = 46;
+  static const double iconSize = 16;
+  static const closeHoverColor = Color(0xFFC42B1C);
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+
+    // the title bar draws a 1px bottom border that the buttons should not cover
+    final buttonSize = Size(buttonWidth, AppSizes.barHeight - 1);
+
     final buttonStyle = ButtonStyle(
-      visualDensity: VisualDensity.compact,
-      padding: WidgetStateProperty.all(EdgeInsets.zero),
-      shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-      iconColor: WidgetStateProperty.all(Theme.of(context).colorScheme.onSurfaceVariant),
+      fixedSize: WidgetStatePropertyAll(buttonSize),
+      minimumSize: WidgetStatePropertyAll(buttonSize),
+      padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+      shape: const WidgetStatePropertyAll(RoundedRectangleBorder()),
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      animationDuration: Duration.zero,
+      backgroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.hovered) ? colors.hover : Colors.transparent,
+      ),
+      iconColor: WidgetStatePropertyAll(colors.textSecondary),
     );
 
     final closeButtonStyle = buttonStyle.copyWith(
-      animationDuration: Duration.zero,
-      backgroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
-        if (states.contains(WidgetState.hovered)) {
-          return Colors.red;
-        }
-        return Colors.transparent;
-      }),
-      iconColor: WidgetStateProperty.resolveWith<Color?>((states) {
-        if (states.contains(WidgetState.hovered)) {
-          return Colors.white;
-        }
-        return Theme.of(context).colorScheme.onSurfaceVariant;
-      }),
+      backgroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.hovered) ? closeHoverColor : Colors.transparent,
+      ),
+      iconColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.hovered) ? Colors.white : colors.textSecondary,
+      ),
     );
 
     return Row(
-      spacing: 8,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(icon: Icon(FontAwesomeIcons.minimize, size: 20), style: buttonStyle, onPressed: windowManager.minimize),
         IconButton(
-          icon: Icon(FontAwesomeIcons.maximize, size: 20),
+          icon: const Icon(FontAwesomeIcons.minimize, size: iconSize),
+          style: buttonStyle,
+          onPressed: windowManager.minimize,
+        ),
+        IconButton(
+          icon: const Icon(FontAwesomeIcons.maximize, size: iconSize),
           style: buttonStyle,
           onPressed: () async {
             if (await windowManager.isMaximized()) {
@@ -46,7 +61,11 @@ class ApplicationTitlebarWindowButtons extends ConsumerWidget {
             }
           },
         ),
-        IconButton(icon: Icon(FontAwesomeIcons.close, size: 20), style: closeButtonStyle, onPressed: windowManager.close),
+        IconButton(
+          icon: const Icon(FontAwesomeIcons.close, size: iconSize),
+          style: closeButtonStyle,
+          onPressed: windowManager.close,
+        ),
       ],
     );
   }

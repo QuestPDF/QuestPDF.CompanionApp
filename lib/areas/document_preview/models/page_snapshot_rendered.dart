@@ -7,11 +7,11 @@ part 'page_snapshot_rendered.g.dart';
 
 @JsonSerializable()
 class PageSnapshotRendered {
-  int pageIndex;
-  int zoomLevel;
+  final int pageIndex;
+  final int zoomLevel;
 
   @JsonKey(fromJson: _fromBase64, toJson: _toBase64)
-  Uint8List imageData;
+  final Uint8List imageData;
 
   PageSnapshotRendered(this.pageIndex, this.zoomLevel, this.imageData);
 

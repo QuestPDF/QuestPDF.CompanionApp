@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:questpdf_companion/areas/document_hierarchy/models/document_structure_page_size.dart';
 import 'package:questpdf_companion/areas/document_hierarchy/models/page_location.dart';
 
-import '../../../shared/visual_elements.dart';
 import '../../document_preview/state/document_preview_pointer_location_state.dart';
 import '../../document_preview/state/document_viewer_state_provider.dart';
 import '../models/document_hierarchy_element.dart';
@@ -46,14 +45,14 @@ class DocumentHierarchyManualMeasurement extends ChangeNotifier {
   }
 
   List<DocumentHierarchyElement> _findVisibleAndMeasurableElementsHelper(int pageNumber) {
-    final state = documentHierarchyProviderInstance.state;
+    final root = documentHierarchyProviderInstance.root;
 
-    if (state == null) return [];
+    if (root == null) return [];
 
     final List<DocumentHierarchyElement> result = [];
 
     void findVisibleElements(DocumentHierarchyElement node) {
-      if (visualElementTypes.contains(node.elementType)) result.add(node);
+      if (node.isVisual) result.add(node);
 
       final isVisible = node.pageLocations.any((x) => x.pageNumber == pageNumber);
 
@@ -62,7 +61,7 @@ class DocumentHierarchyManualMeasurement extends ChangeNotifier {
       node.children.forEach(findVisibleElements);
     }
 
-    findVisibleElements(state);
+    findVisibleElements(root);
     return result;
   }
 
@@ -91,9 +90,8 @@ class DocumentHierarchyManualMeasurement extends ChangeNotifier {
       pageSize.width,
     ].distinct().sorted();
 
-    final index = Iterable.generate(
-      sortedSides.length - 1,
-    ).firstWhere((i) => sortedSides[i] <= pointer.x && pointer.x <= sortedSides[i + 1]);
+    final index = Iterable.generate(sortedSides.length - 1)
+        .firstWhere((i) => sortedSides[i] <= pointer.x && pointer.x <= sortedSides[i + 1]);
 
     final begin = Offset(sortedSides[index], pointer.y);
     final end = Offset(sortedSides[index + 1], pointer.y);
@@ -144,9 +142,8 @@ class DocumentHierarchyManualMeasurement extends ChangeNotifier {
       pageSize.height,
     ].distinct().sorted();
 
-    final index = Iterable.generate(
-      sortedSides.length - 1,
-    ).firstWhere((i) => sortedSides[i] <= pointer.y && pointer.y <= sortedSides[i + 1]);
+    final index = Iterable.generate(sortedSides.length - 1)
+        .firstWhere((i) => sortedSides[i] <= pointer.y && pointer.y <= sortedSides[i + 1]);
 
     final begin = Offset(pointer.x, sortedSides[index]);
     final end = Offset(pointer.x, sortedSides[index + 1]);

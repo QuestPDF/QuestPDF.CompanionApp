@@ -1,12 +1,8 @@
-final prettifyNameRegex = RegExp(r'([a-z])([A-Z])');
+import 'package:dartx/dartx.dart';
 
-String capitalizeFirstLetter(String text) {
-  if (text.isEmpty) return text;
-  return text[0].toUpperCase() + text.substring(1);
-}
+final _camelCaseBoundary = RegExp(r'([a-z])([A-Z])');
 
+// "TextBlock" → "Text Block"
 String prettifyName(String text) {
-  var result = text.replaceAllMapped(prettifyNameRegex, (Match m) => '${m[1]} ${m[2]}');
-  result = capitalizeFirstLetter(result);
-  return result;
+  return text.replaceAllMapped(_camelCaseBoundary, (match) => '${match[1]} ${match[2]}').capitalize();
 }

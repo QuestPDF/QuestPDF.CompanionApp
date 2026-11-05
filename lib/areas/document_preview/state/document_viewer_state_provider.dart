@@ -12,43 +12,38 @@ final documentPreviewImageCacheStateInstance = DocumentPreviewImageCacheState();
 final documentPreviewImageCacheStateProvider = ChangeNotifierProvider((ref) => documentPreviewImageCacheStateInstance);
 
 class DocumentPreviewImageCacheState extends ChangeNotifier {
-  num refreshId = 0;
+  int refreshId = 0;
   List<DocumentStructurePageSize> pages = [];
 
   bool isImagesCacheInvalidated = false;
-  Map<String, ui.Image> images = {};
+  final Map<String, ui.Image> images = {};
 
-  List<String> neededImages = [];
+  List<PageSnapshotIndex> neededImages = [];
+
+  static String _cacheKey(int pageIndex, int zoomLevel) => "${pageIndex}_$zoomLevel";
 
   void updateDocumentStructure(List<DocumentStructurePageSize> newPages) {
     refreshId++;
 
     pages = newPages;
 
-    neededImages.clear();
+    neededImages = [];
     isImagesCacheInvalidated = true;
 
     notifyListeners();
   }
 
   void updateNeededImages(List<PageSnapshotIndex> indexes) {
-    neededImages.clear();
-    neededImages.addAll(indexes.map((e) => "${e.pageIndex}_${e.zoomLevel}"));
+    neededImages = indexes;
   }
 
   List<PageSnapshotIndex> getNeededImages() {
-    if (neededImages.isEmpty) return [];
-
     final imagesToRequest = neededImages
-        .where((element) => isImagesCacheInvalidated || !images.keys.contains(element))
+        .where((x) => isImagesCacheInvalidated || !images.containsKey(_cacheKey(x.pageIndex, x.zoomLevel)))
         .toList();
 
-    neededImages.clear();
-
-    return imagesToRequest.map((e) {
-      final parts = e.split("_");
-      return PageSnapshotIndex(int.parse(parts[0]), int.parse(parts[1]));
-    }).toList();
+    neededImages = [];
+    return imagesToRequest;
   }
 
   Future<void> addImages(List<PageSnapshotRendered> imagesToAdd) async {
@@ -56,7 +51,12 @@ class DocumentPreviewImageCacheState extends ChangeNotifier {
       final imagesToClear = images.values.toList();
       images.clear();
 
-      Future.microtask(() => imagesToClear.forEach((x) => x.dispose()));
+      Future.microtask(() {
+        for (final image in imagesToClear) {
+          image.dispose();
+        }
+      });
+
       isImagesCacheInvalidated = false;
     }
 
@@ -64,37 +64,19 @@ class DocumentPreviewImageCacheState extends ChangeNotifier {
       final codec = await instantiateImageCodec(image.imageData);
       final frame = await codec.getNextFrame();
 
-      final cacheKey = "${image.pageIndex}_${image.zoomLevel}";
-      images[cacheKey] = frame.image;
+      images[_cacheKey(image.pageIndex, image.zoomLevel)] = frame.image;
     }
 
     notifyListeners();
   }
 
+  // until the requested zoom level is rendered, the closest available one stands in, sharper levels first
   ui.Image? getImage(PageSnapshotIndex index) {
-    final zoomLevelPriority = [
-      index.zoomLevel,
-      ...List.generate(10, (x) => index.zoomLevel + x),
-      ...List.generate(10, (x) => index.zoomLevel - x),
+    final zoomLevels = [
+      for (var i = 0; i < 10; i++) index.zoomLevel + i,
+      for (var i = 1; i < 10; i++) index.zoomLevel - i,
     ];
 
-    return zoomLevelPriority
-        .map((x) => PageSnapshotIndex(index.pageIndex, x))
-        .map(indexToString)
-        .map((x) => images[x])
-        .where((x) => x != null)
-        .firstOrNull;
+    return zoomLevels.map((zoomLevel) => images[_cacheKey(index.pageIndex, zoomLevel)]).nonNulls.firstOrNull;
   }
-
-  String indexToString(PageSnapshotIndex index) {
-    return "${index.pageIndex}_${index.zoomLevel}";
-  }
-}
-
-class DocumentViewerCacheItem {
-  final int pageIndex;
-  final int zoomLevel;
-  bool isInvalidated = false;
-
-  DocumentViewerCacheItem(this.pageIndex, this.zoomLevel);
 }

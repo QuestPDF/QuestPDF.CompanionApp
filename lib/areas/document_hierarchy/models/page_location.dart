@@ -20,19 +20,17 @@ class PageLocation {
     required this.bottom,
   });
 
-  const PageLocation.fromPLTRB(this.pageNumber, this.left, this.top, this.right, this.bottom);
-
   factory PageLocation.fromJson(Map<String, dynamic> json) => _$PageLocationFromJson(json);
 
   Map<String, dynamic> toJson() => _$PageLocationToJson(this);
 }
 
 extension PageLocationExtensions on PageLocation {
-  get width => right - left;
+  double get width => right - left;
 
-  get height => bottom - top;
+  double get height => bottom - top;
 
-  get area => width * height;
+  double get area => width * height;
 
   bool intersects(PageLocation other) {
     return pageNumber == other.pageNumber &&
@@ -40,6 +38,10 @@ extension PageLocationExtensions on PageLocation {
         right >= other.left &&
         top <= other.bottom &&
         bottom >= other.top;
+  }
+
+  bool contains(int pageNumber, double x, double y) {
+    return this.pageNumber == pageNumber && left <= x && x <= right && top <= y && y <= bottom;
   }
 
   Rect toRect() {
