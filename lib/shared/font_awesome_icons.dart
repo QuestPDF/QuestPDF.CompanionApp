@@ -25,6 +25,7 @@ class FontAwesomeIcons {
   static const IconData book = IconData(0xf02d, fontFamily: faLight);
   static const IconData hotReload = IconData(0xf7e4, fontFamily: faLight);
   static const IconData layoutError = IconData(0xe290, fontFamily: faLight);
+  static const IconData linkHorizontal = IconData(0xe1cb, fontFamily: faLight);
   static const IconData license = IconData(0xe0ab, fontFamily: faLight);
   static const IconData arrowsRotate = IconData(0xf021, fontFamily: faLight);
   static const IconData penLine = IconData(0xe212, fontFamily: faLight);

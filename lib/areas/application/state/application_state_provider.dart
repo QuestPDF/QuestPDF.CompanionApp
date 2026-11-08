@@ -62,18 +62,22 @@ class ApplicationStateProvider extends ChangeNotifier {
   }
 
   static int sanitizePortNumber(String portText) {
-    return int.tryParse(portText)?.clamp(communicationServiceMinPort, communicationServiceMaxPort) ??
-        communicationServiceDefaultPort;
+    final port = int.tryParse(portText);
+
+    if (port == null || port < communicationServiceMinPort || port > communicationServiceMaxPort) {
+      return communicationServiceDefaultPort;
+    }
+
+    return port;
   }
 
-  Future changeCommunicationPort(int newPort) async {
-    if (communicationPort == newPort) return;
+  Future<void> changeCommunicationPort(int newPort) async {
+    if (communicationPort == newPort && communicationServiceInstance.failedPort.value == null) return;
 
     communicationPort = newPort;
     _prefs?.setInt('communicationPort', communicationPort);
 
-    await communicationServiceInstance.stopServer();
-    await communicationServiceInstance.tryToStartTheServer(communicationPort);
+    await communicationServiceInstance.tryToStartTheServer(newPort);
 
     notifyListeners();
   }

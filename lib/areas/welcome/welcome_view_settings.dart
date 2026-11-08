@@ -28,6 +28,7 @@ class _WelcomeViewSettingsState extends ConsumerState<WelcomeViewSettings> {
   );
 
   late final TextEditingController portController;
+  final FocusNode portFocusNode = FocusNode();
 
   bool isExpanded = false;
 
@@ -36,12 +37,19 @@ class _WelcomeViewSettingsState extends ConsumerState<WelcomeViewSettings> {
     super.initState();
     final port = ref.read(applicationStateProvider).communicationPort;
     portController = TextEditingController(text: port.toString());
+    portFocusNode.addListener(handlePortFocusChange);
   }
 
   @override
   void dispose() {
+    portFocusNode.removeListener(handlePortFocusChange);
+    portFocusNode.dispose();
     portController.dispose();
     super.dispose();
+  }
+
+  void handlePortFocusChange() {
+    if (!portFocusNode.hasFocus) applyPort();
   }
 
   void applyPort() {
@@ -206,15 +214,16 @@ class _WelcomeViewSettingsState extends ConsumerState<WelcomeViewSettings> {
       height: controlHeight,
       child: TextField(
         controller: portController,
+        focusNode: portFocusNode,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1),
         keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.done,
         textAlign: TextAlign.end,
         textAlignVertical: TextAlignVertical.center,
-        expands: true,
-        maxLines: null,
+        maxLines: 1,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         decoration: InputDecoration(
-          isDense: true,
+          isDense: false,
           contentPadding: const EdgeInsets.symmetric(horizontal: 10),
           filled: true,
           fillColor: context.appColors.fill,
@@ -224,11 +233,8 @@ class _WelcomeViewSettingsState extends ConsumerState<WelcomeViewSettings> {
             borderSide: BorderSide(color: context.appColors.accent),
           ),
         ),
-        onTapOutside: (_) {
-          FocusScope.of(context).unfocus();
-          applyPort();
-        },
-        onSubmitted: (_) => applyPort(),
+        onTapOutside: (_) => portFocusNode.unfocus(),
+        onSubmitted: (_) => portFocusNode.unfocus(),
       ),
     );
   }

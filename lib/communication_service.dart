@@ -20,6 +20,7 @@ import 'areas/document_preview/state/document_viewer_state_provider.dart';
 import 'areas/generic_exception/models/show_generic_exception_command.dart';
 
 const communicationServiceDefaultPort = 12500;
+const communicationServiceBindRetryInterval = Duration(seconds: 5);
 
 // port 0 makes the operating system pick a random free port that the library cannot discover,
 // and ports below 1024 require elevated privileges on macOS and Linux
@@ -33,29 +34,102 @@ class CommunicationService {
   static const _parseInIsolateThresholdBytes = 256 * 1024;
 
   DateTime? _lastCommunication;
+  Timer? _connectionTimer;
+  Timer? _bindRetryTimer;
+  int _serverRevision = 0;
+
+  Future<void> _serverOperation = Future.value();
+  final failedPort = ValueNotifier<int?>(null);
 
   HttpServer? server;
-
-  CommunicationService() {
-    Timer.periodic(const Duration(milliseconds: 1000), (x) => _checkConnection());
-  }
 
   Future<void> tryToStartTheServer(int port) async {
     try {
       await startServer(port);
     } catch (e) {
-      // e.g. the port is already in use; another one can be chosen in the settings
+      // startServer records the failure and schedules another attempt.
     }
   }
 
-  Future<void> startServer(int port) async {
-    server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
-    server!.listen(_handleRequest);
+  Future<void> startServer(int port) {
+    final revision = ++_serverRevision;
+    _cancelBindRetry();
+    return _enqueueServerOperation(() => _bindServer(port, revision));
   }
 
-  Future stopServer() async {
-    await server?.close(force: true);
+  Future<void> _bindServer(int port, int revision) async {
+    // A newer start/stop was requested while this one was waiting in the queue.
+    if (revision != _serverRevision) return;
+
+    // Keep the error visible throughout retries; clear it when changing ports
+    // or after a successful bind so the message does not blink every five seconds.
+    if (failedPort.value != port) failedPort.value = null;
+
+    try {
+      await _closeServer();
+      final newServer = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+
+      // A newer start/stop may have been requested while the bind was pending.
+      if (revision != _serverRevision) {
+        await newServer.close(force: true);
+        return;
+      }
+
+      server = newServer;
+      newServer.listen(_handleRequest);
+      _connectionTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) => _checkConnection());
+      failedPort.value = null;
+    } catch (e) {
+      if (revision == _serverRevision) {
+        failedPort.value = port;
+        _scheduleBindRetry(port, revision);
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> stopServer() {
+    ++_serverRevision;
+    _cancelBindRetry();
+    return _enqueueServerOperation(() async {
+      await _closeServer();
+      failedPort.value = null;
+    });
+  }
+
+  void _cancelBindRetry() {
+    _bindRetryTimer?.cancel();
+    _bindRetryTimer = null;
+  }
+
+  void _scheduleBindRetry(int port, int revision) {
+    _cancelBindRetry();
+    // Schedule after each failed attempt, rather than periodically, so a slow
+    // bind cannot accumulate overlapping retry operations.
+    _bindRetryTimer = Timer(communicationServiceBindRetryInterval, () {
+      _bindRetryTimer = null;
+      // A failed retry schedules the next one itself, so its error needs no handling here.
+      _enqueueServerOperation(() => _bindServer(port, revision)).ignore();
+    });
+  }
+
+  // Closing and binding are one operation: a newer port change must wait for
+  // an in-flight bind, otherwise its listener can be overwritten and leaked.
+  Future<void> _enqueueServerOperation(Future<void> Function() operation) {
+    final result = _serverOperation.then((_) => operation());
+    // A failed bind must not prevent later port changes or retries.
+    _serverOperation = result.then<void>((_) {}, onError: (Object error, StackTrace stackTrace) {});
+    return result;
+  }
+
+  Future<void> _closeServer() async {
+    _connectionTimer?.cancel();
+    _connectionTimer = null;
+    _lastCommunication = null;
+
+    final previousServer = server;
     server = null;
+    await previousServer?.close(force: true);
   }
 
   void _checkConnection() {
