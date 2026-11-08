@@ -115,6 +115,7 @@ class GenericExceptionStackFramePreviewState extends ConsumerState<GenericExcept
       final lineNumber = stackFrame.lineNumber!;
 
       final snippet = SourceCodeVisualization(
+        key: ObjectKey(stackFrame),
         filePath: filePath,
         highlightLineNumber: lineNumber,
         showLinesBuffer: 9,
