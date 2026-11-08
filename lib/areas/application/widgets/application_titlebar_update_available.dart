@@ -8,7 +8,9 @@ import '../state/application_version_state.dart';
 import 'application_titlebar_card.dart';
 
 class ApplicationTitlebarUpdateAvailable extends ConsumerWidget {
-  const ApplicationTitlebarUpdateAvailable({super.key});
+  final bool showLabel;
+
+  const ApplicationTitlebarUpdateAvailable({super.key, this.showLabel = true});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,6 +22,7 @@ class ApplicationTitlebarUpdateAvailable extends ConsumerWidget {
     final latestVersion = applicationVersion.latestApplicationVersion!.text;
 
     return ApplicationTitlebarCard(
+      showLabel: showLabel,
       icon: FontAwesomeIcons.arrowsRotate,
       tone: StatusTone.info,
       label: "Update",
