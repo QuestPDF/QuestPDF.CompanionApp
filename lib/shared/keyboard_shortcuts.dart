@@ -92,6 +92,11 @@ class KeyboardShortcutsState extends State<KeyboardShortcuts> {
       final isElementSelected = documentHierarchyProviderInstance.selectedElement != null;
       final documentHasLayoutErrors = documentLayoutErrorProviderInstance.containsLayoutError;
 
+      if (isControlPressed && event.physicalKey == PhysicalKeyboardKey.keyB && (isSearchActive || !isTextInputActive())) {
+        applicationStateProviderInstance.toggleDocumentHierarchyVisibility();
+        return true;
+      }
+
       if (isSearchActive) {
         if (event.logicalKey == LogicalKeyboardKey.escape) {
           documentHierarchySearchStateInstance.reset();
@@ -121,11 +126,6 @@ class KeyboardShortcutsState extends State<KeyboardShortcuts> {
       if (isControlPressed && event.physicalKey == PhysicalKeyboardKey.keyF) {
         documentHierarchySearchStateInstance.update(null);
         Future(() => documentHierarchySearchStateInstance.update(""));
-        return true;
-      }
-
-      if (isControlPressed && event.physicalKey == PhysicalKeyboardKey.keyB) {
-        applicationStateProviderInstance.toggleDocumentHierarchyVisibility();
         return true;
       }
 

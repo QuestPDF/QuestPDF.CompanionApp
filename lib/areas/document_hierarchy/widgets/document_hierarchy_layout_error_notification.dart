@@ -13,6 +13,7 @@ class DocumentHierarchyLayoutErrorNotification extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final layoutErrorState = ref.watch(documentLayoutErrorProvider);
+    if (!layoutErrorState.containsLayoutError) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
     final colors = context.appColors;
@@ -27,13 +28,20 @@ class DocumentHierarchyLayoutErrorNotification extends ConsumerWidget {
         children: [
           EmboldenedIcon(icon: FontAwesomeIcons.layoutError, color: colors.error, size: 16),
           const SizedBox(width: 10),
-          Text("Layout error", style: titleStyle),
-          const SizedBox(width: 8),
-          Text(
-            "${layoutErrorState.currentlySelectedLayoutErrorIndex + 1} / ${layoutErrorState.numberOfLayoutErrors}",
-            style: counterStyle,
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text("Layout error", style: titleStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "${layoutErrorState.currentlySelectedLayoutErrorIndex + 1} / ${layoutErrorState.numberOfLayoutErrors}",
+                  style: counterStyle,
+                ),
+              ],
+            ),
           ),
-          const Spacer(),
           IconButton(
             icon: const Icon(FontAwesomeIcons.arrowUp, size: 16),
             tooltip: "Previous layout error",

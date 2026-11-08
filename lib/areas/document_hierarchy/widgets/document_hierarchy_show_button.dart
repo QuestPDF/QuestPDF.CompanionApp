@@ -10,11 +10,14 @@ import '../../application/state/application_state_provider.dart';
 class DocumentHierarchyShowButton extends StatelessWidget {
   static const double size = 36;
   static const double inset = 10;
+  static const double barLeadingSpace = size + inset * 2 + 4;
 
   // centers the button in the element details bar
   static const double detailsBarTop = (AppSizes.barHeight - size) / 2;
 
-  const DocumentHierarchyShowButton({super.key});
+  final bool alwaysVisible;
+
+  const DocumentHierarchyShowButton({super.key, this.alwaysVisible = false});
 
   @override
   Widget build(BuildContext context) {
@@ -45,10 +48,13 @@ class DocumentHierarchyShowButton extends StatelessWidget {
 
     return ValueListenableBuilder(
       valueListenable: isPointerOverApplication,
-      builder: (context, isVisible, child) => IgnorePointer(
-        ignoring: !isVisible,
-        child: AnimatedOpacity(opacity: isVisible ? 1 : 0, duration: const Duration(milliseconds: 150), child: child),
-      ),
+      builder: (context, isPointerOverApp, child) {
+        final isVisible = alwaysVisible || isPointerOverApp;
+        return IgnorePointer(
+          ignoring: !isVisible,
+          child: AnimatedOpacity(opacity: isVisible ? 1 : 0, duration: const Duration(milliseconds: 150), child: child),
+        );
+      },
       child: button,
     );
   }

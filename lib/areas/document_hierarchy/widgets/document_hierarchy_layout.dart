@@ -17,7 +17,9 @@ import 'document_hierarchy_search.dart';
 import 'document_hierarchy_tree_presentation.dart';
 
 class DocumentHierarchyLayout extends ConsumerStatefulWidget {
-  const DocumentHierarchyLayout({super.key});
+  final Key? searchKey;
+
+  const DocumentHierarchyLayout({super.key, this.searchKey});
 
   @override
   ConsumerState<DocumentHierarchyLayout> createState() => _DocumentHierarchyLayoutState();
@@ -49,7 +51,7 @@ class _DocumentHierarchyLayoutState extends ConsumerState<DocumentHierarchyLayou
           children: [
             if (showLayoutErrors) const DocumentHierarchyLayoutErrorNotification(),
             if (showSearch && showLayoutErrors) const Divider(),
-            if (showSearch) const DocumentHierarchySearch(),
+            if (showSearch) DocumentHierarchySearch(key: widget.searchKey),
             if (showSearch || showLayoutErrors) const Divider(),
             Expanded(
               child: Stack(

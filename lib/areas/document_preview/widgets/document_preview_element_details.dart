@@ -14,12 +14,31 @@ import '../../document_hierarchy/models/document_hierarchy_element_layout_error_
 import '../../document_hierarchy/models/element_size.dart';
 import '../../document_hierarchy/models/page_location.dart';
 import '../../document_hierarchy/state/document_hierarchy_provider.dart';
+import '../../document_hierarchy/state/document_hierarchy_search_state.dart';
 import '../../document_hierarchy/state/document_layout_error_provider.dart';
+import '../../document_hierarchy/widgets/document_hierarchy_search.dart';
+import '../../document_hierarchy/widgets/document_hierarchy_layout_error_notification.dart';
 import '../../document_hierarchy/widgets/document_hierarchy_show_button.dart';
-import '../../document_preview_with_hierarchy_view.dart';
+import 'document_preview_toolbar_layout.dart';
+
+final isDocumentPreviewToolbarVisibleProvider = Provider<bool>((ref) {
+  final hasSelectedElement = ref.watch(
+    documentHierarchyProvider.select((x) => x.selectedElement != null && x.selectedElementPageLocationIndex != null),
+  );
+
+  if (hasSelectedElement) return true;
+
+  // the search and the layout errors live in the hierarchy panel; the bar takes them over while the panel is hidden
+  if (ref.watch(applicationStateProvider.select((x) => x.showDocumentHierarchy))) return false;
+
+  return ref.watch(documentHierarchySearchStateProvider.select((x) => x.searchPhrase != null)) ||
+      ref.watch(documentLayoutErrorProvider.select((x) => x.containsLayoutError));
+});
 
 class DocumentPreviewElementDetails extends ConsumerStatefulWidget {
-  const DocumentPreviewElementDetails({super.key});
+  final Key? searchKey;
+
+  const DocumentPreviewElementDetails({super.key, this.searchKey});
 
   @override
   DocumentPreviewElementDetailsState createState() => DocumentPreviewElementDetailsState();
@@ -30,38 +49,95 @@ class DocumentPreviewElementDetailsState extends ConsumerState<DocumentPreviewEl
 
   @override
   Widget build(BuildContext context) {
+    // a bar that disappears from under the pointer never reports onExit,
+    // so clearing the selection has to close the snippet as well
+    ref.listen(documentHierarchyProvider.select((x) => x.selectedElement), (_, selectedElement) {
+      if (selectedElement == null) setState(() => showSourceCodePreview = false);
+    });
+
+    if (!ref.watch(isDocumentPreviewToolbarVisibleProvider)) return const SizedBox.shrink();
+
     final selectedElement = ref.watch(documentHierarchyProvider.select((x) => x.selectedElement));
     final selectedElementPageLocationIndex = ref.watch(
       documentHierarchyProvider.select((x) => x.selectedElementPageLocationIndex),
     );
 
-    if (selectedElement == null || selectedElementPageLocationIndex == null) return const SizedBox.shrink();
+    final hasDetails = selectedElement != null && selectedElementPageLocationIndex != null;
+    final isHierarchyHidden = !ref.watch(applicationStateProvider.select((x) => x.showDocumentHierarchy));
+    final showSearch =
+        isHierarchyHidden && ref.watch(documentHierarchySearchStateProvider.select((x) => x.searchPhrase != null));
+    final showLayoutErrors =
+        isHierarchyHidden && ref.watch(documentLayoutErrorProvider.select((x) => x.containsLayoutError));
+
+    final items = <DocumentPreviewToolbarItem>[];
+    void addControl(Widget child, double width) {
+      // Reserve the same toggle gutter on every row so their leading icons align.
+      const inset = DocumentHierarchyShowButton.barLeadingSpace;
+      items.add(
+        DocumentPreviewToolbarItem(
+          child: Padding(
+            padding: EdgeInsets.only(left: inset),
+            child: child,
+          ),
+          maxWidth: width + inset,
+        ),
+      );
+    }
+
+    if (showLayoutErrors) {
+      addControl(const DocumentHierarchyLayoutErrorNotification(), DocumentPreviewToolbarLayout.layoutErrorWidth);
+    }
+    if (showSearch) {
+      addControl(DocumentHierarchySearch(key: widget.searchKey), DocumentPreviewToolbarLayout.searchWidth);
+    }
+    if (hasDetails) {
+      items.add(
+        DocumentPreviewToolbarItem(
+          maxWidth: isHierarchyHidden ? DocumentPreviewToolbarLayout.detailsWidth : null,
+          child: buildTopBar(selectedElement, selectedElementPageLocationIndex, isHierarchyHidden),
+        ),
+      );
+    }
 
     final colors = context.appColors;
 
-    return Material(
-      color: colors.chrome,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          buildTopBar(selectedElement, selectedElementPageLocationIndex),
-          buildSourceCodePreview(),
-          // the translucent divider would vanish over the chrome, so it is drawn over the canvas below the bar
-          ColoredBox(color: colors.canvas, child: const Divider()),
-        ],
+    return MouseRegion(
+      // Keep the snippet open while the pointer moves into it to scroll.
+      onExit: (_) => setState(() => showSourceCodePreview = false),
+      child: Material(
+        color: colors.chrome,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DocumentPreviewToolbarLayout(items: items, dividerColor: colors.border),
+            if (hasDetails)
+              Flexible(
+                child: SingleChildScrollView(
+                  // every element starts with a freshly loaded snippet, scrolled to the top
+                  key: ObjectKey(selectedElement),
+                  primary: false,
+                  child: buildSourceCodePreview(),
+                ),
+              ),
+            // the translucent divider would vanish over the chrome, so it is drawn over the canvas below the bar
+            ColoredBox(color: colors.canvas, child: const Divider()),
+          ],
+        ),
       ),
     );
   }
 
-  Widget buildTopBar(DocumentHierarchyElement selectedElement, int selectedElementPageLocationIndex) {
+  Widget buildTopBar(
+    DocumentHierarchyElement selectedElement,
+    int selectedElementPageLocationIndex,
+    bool isHierarchyHidden,
+  ) {
     final layoutErrorState = ref.watch(documentLayoutErrorProvider);
 
-    // leaves room for the show button floating over the start of the bar
-    final isShowButtonVisible = !ref.watch(isDocumentHierarchyPanelVisibleProvider);
-    const showButtonSpace = DocumentHierarchyShowButton.size + DocumentHierarchyShowButton.inset * 2 + 4;
-
     final sections = [
-      buildNavigationSection(selectedElement),
+      // the hierarchy panel names the selected element; without it, the bar does
+      buildNavigationSection(selectedElement, showElementName: isHierarchyHidden),
       if (layoutErrorState.containsLayoutError)
         ...buildLayoutErrorMeasurementSection(layoutErrorState, selectedElement)
       else
@@ -77,8 +153,10 @@ class DocumentPreviewElementDetailsState extends ConsumerState<DocumentPreviewEl
     }
 
     return Container(
+      key: const ValueKey('preview-selected-element-details'),
       alignment: Alignment.centerLeft,
-      padding: EdgeInsets.only(left: isShowButtonVisible ? showButtonSpace : 8, right: 8),
+      // The first IconButton adds 8px of its own inset, matching the other rows' 16px padding.
+      padding: EdgeInsets.only(left: (isHierarchyHidden ? DocumentHierarchyShowButton.barLeadingSpace : 0) + 8, right: 8),
       child: Wrap(spacing: 36, children: sections.map(buildRowItem).toList()),
     );
   }
@@ -100,6 +178,10 @@ class DocumentPreviewElementDetailsState extends ConsumerState<DocumentPreviewEl
   }
 
   List<Widget> buildLayoutSection(DocumentHierarchyElement selectedElement, int selectedElementPageLocationIndex) {
+    if (selectedElementPageLocationIndex < 0 || selectedElementPageLocationIndex >= selectedElement.pageLocations.length) {
+      return [];
+    }
+
     final location = selectedElement.pageLocations[selectedElementPageLocationIndex];
 
     String formatPages() {
@@ -176,16 +258,14 @@ class DocumentPreviewElementDetailsState extends ConsumerState<DocumentPreviewEl
     );
   }
 
-  Widget buildNavigationSection(DocumentHierarchyElement selectedElement) {
-    final enablePositionButtons = selectedElement.pageLocations.length != 1;
-    final showElementName = !ref.watch(applicationStateProvider.select((x) => x.showDocumentHierarchy));
+  Widget buildNavigationSection(DocumentHierarchyElement selectedElement, {required bool showElementName}) {
+    final enablePositionButtons = selectedElement.pageLocations.length > 1;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         MouseRegion(
           onEnter: (_) => setState(() => showSourceCodePreview = true),
-          onExit: (_) => setState(() => showSourceCodePreview = false),
           child: IconButton(
             icon: const Icon(FontAwesomeIcons.penLine, size: 16),
             visualDensity: VisualDensity.compact,
@@ -279,27 +359,30 @@ class DocumentPreviewElementDetailsState extends ConsumerState<DocumentPreviewEl
       );
       final wrapReasonStyle = theme.textTheme.bodyMedium?.copyWith(color: context.appColors.textSecondary);
 
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          buildIndicator(),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: formatMeasurementStatus(), style: statusStyle),
-                  if (wrapReason != null && wrapReason.isNotEmpty) ...[
-                    const WidgetSpan(child: SizedBox(width: 8)),
-                    TextSpan(text: wrapReason, style: wrapReasonStyle),
+      return Tooltip(
+        message: wrapReason ?? "",
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            buildIndicator(),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: formatMeasurementStatus(), style: statusStyle),
+                    if (wrapReason != null && wrapReason.isNotEmpty) ...[
+                      const WidgetSpan(child: SizedBox(width: 8)),
+                      TextSpan(text: wrapReason, style: wrapReasonStyle),
+                    ],
                   ],
-                ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 
