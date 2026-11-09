@@ -17,8 +17,11 @@ class GenericExceptionViewLayout extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final exception = ref.watch(genericExceptionViewStateProvider).state;
 
+    // keyed by identity, so a new exception starts with fresh rows: default expansion and newly read source code
     final exceptionWidgets = flatten(exception)
-        .map((x) => GenericExceptionViewItem(type: x.type, message: x.message, stackTrace: x.stackTrace))
+        .map(
+          (x) => GenericExceptionViewItem(key: ObjectKey(x), type: x.type, message: x.message, stackTrace: x.stackTrace),
+        )
         .toList();
 
     return ColoredBox(

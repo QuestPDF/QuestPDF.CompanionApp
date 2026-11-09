@@ -27,15 +27,6 @@ class GenericExceptionStackFramePreviewState extends ConsumerState<GenericExcept
   late bool isExpanded = widget.isExpanded;
 
   @override
-  void didUpdateWidget(covariant GenericExceptionStackFramePreview oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    // a new exception reuses the rows in place, so the default expansion must be applied again
-    final frameChanged = oldWidget.stackFrame != widget.stackFrame || oldWidget.isExpanded != widget.isExpanded;
-    if (frameChanged) isExpanded = widget.isExpanded;
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = context.appColors;
@@ -115,7 +106,6 @@ class GenericExceptionStackFramePreviewState extends ConsumerState<GenericExcept
       final lineNumber = stackFrame.lineNumber!;
 
       final snippet = SourceCodeVisualization(
-        key: ObjectKey(stackFrame),
         filePath: filePath,
         highlightLineNumber: lineNumber,
         showLinesBuffer: 9,

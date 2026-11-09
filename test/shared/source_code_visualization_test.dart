@@ -18,12 +18,10 @@ final class PendingSourceFile implements File {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-// The snippet reads its file once, so it is keyed by what it displays, as in the application.
 Widget snippet(String path) => MaterialApp(
   theme: buildAppTheme(Brightness.light),
   home: Scaffold(
     body: SourceCodeVisualization(
-      key: ValueKey(path),
       filePath: path,
       highlightLineNumber: 1,
       showLinesBuffer: 1,
@@ -37,7 +35,23 @@ SourceCodeVisualizationState sourceState(WidgetTester tester) =>
     tester.state<SourceCodeVisualizationState>(find.byType(SourceCodeVisualization));
 
 void main() {
-  testWidgets('a new key replaces the displayed source', (tester) async {
+  testWidgets('a slow read of the previous file does not replace the current one', (tester) async {
+    final first = Completer<String>();
+    final second = Completer<String>();
+    await IOOverrides.runZoned(() async {
+      await tester.pumpWidget(snippet('first.cs'));
+      await tester.pumpWidget(snippet('second.cs'));
+      second.complete('SECOND_FILE');
+      await tester.pump();
+      expect(sourceState(tester).sourceCode, 'SECOND_FILE');
+
+      first.complete('FIRST_FILE');
+      await tester.pump();
+      expect(sourceState(tester).sourceCode, 'SECOND_FILE');
+    }, createFile: (path) => PendingSourceFile(path == 'first.cs' ? first.future : second.future));
+  });
+
+  testWidgets('a new path replaces the displayed source', (tester) async {
     final first = Completer<String>();
     final second = Completer<String>();
     await IOOverrides.runZoned(() async {

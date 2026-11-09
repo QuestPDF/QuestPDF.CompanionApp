@@ -8,8 +8,8 @@ import 'package:flutter_highlight/themes/atom-one-light.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 
-/// Reads the file once. Give it a key that changes with the displayed element,
-/// so the snippet is loaded again even when the file path and the line stay the same.
+/// Reads the file when it is created and whenever [filePath] changes.
+/// A file edited on disk is read again only by a new instance.
 class SourceCodeVisualization extends StatefulWidget {
   final String filePath;
   final int highlightLineNumber;
@@ -40,13 +40,34 @@ class SourceCodeVisualizationState extends State<SourceCodeVisualization> {
     loadSourceCode();
   }
 
+  @override
+  void didUpdateWidget(SourceCodeVisualization oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.filePath == widget.filePath) return;
+
+    sourceCode = null;
+    hasLoadingFailed = false;
+    loadSourceCode();
+  }
+
   Future<void> loadSourceCode() async {
+    final filePath = widget.filePath;
+    String? fileContent;
+
     try {
-      final fileContent = await File(widget.filePath).readAsString();
-      if (mounted) setState(() => sourceCode = fileContent);
+      fileContent = await File(filePath).readAsString();
     } catch (e) {
-      if (mounted) setState(() => hasLoadingFailed = true);
+      // reported below as a loading failure
     }
+
+    // another file may have been requested while this one was being read
+    if (!mounted || filePath != widget.filePath) return;
+
+    setState(() {
+      sourceCode = fileContent;
+      hasLoadingFailed = fileContent == null;
+    });
   }
 
   BoxDecoration buildBlockDecoration() {
