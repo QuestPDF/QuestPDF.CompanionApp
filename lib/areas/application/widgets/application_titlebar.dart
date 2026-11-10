@@ -57,27 +57,19 @@ class _ApplicationTitlebarState extends ConsumerState<ApplicationTitlebar> with 
         ? const [SizedBox(width: 16)]
         : const [SizedBox(width: 12), ApplicationTitlebarWindowButtons()];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Keep the window controls reachable on narrow windows and with larger text.
-        final textScale = MediaQuery.textScalerOf(context).scale(12) / 12;
-        final showLabels = constraints.maxWidth >= 800 * textScale;
-
-        return Row(
-          children: [
-            SizedBox(width: leadingInset),
-            const ApplicationTitlebarLogo(),
-            const Spacer(),
-            // the welcome screen lists an available update in its own menu
-            if (currentMode != ApplicationMode.welcomeScreen) ...[
-              ApplicationTitlebarHotReloadWarning(showLabel: showLabels),
-              ApplicationTitlebarLicense(showLabel: showLabels),
-              ApplicationTitlebarUpdateAvailable(showLabel: showLabels),
-            ],
-            ...trailing,
-          ],
-        );
-      },
+    return Row(
+      children: [
+        SizedBox(width: leadingInset),
+        const ApplicationTitlebarLogo(),
+        const Spacer(),
+        // the welcome screen lists an available update in its own menu
+        if (currentMode != ApplicationMode.welcomeScreen) ...const [
+          ApplicationTitlebarHotReloadWarning(),
+          ApplicationTitlebarLicense(),
+          ApplicationTitlebarUpdateAvailable(),
+        ],
+        ...trailing,
+      ],
     );
   }
 }

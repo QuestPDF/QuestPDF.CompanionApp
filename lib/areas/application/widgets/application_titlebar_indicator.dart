@@ -10,7 +10,6 @@ class ApplicationTitlebarIndicator extends StatelessWidget {
   final IconData icon;
   final StatusTone tone;
   final String label;
-  final bool showLabel;
   final VoidCallback? onPressed;
 
   const ApplicationTitlebarIndicator({
@@ -18,7 +17,6 @@ class ApplicationTitlebarIndicator extends StatelessWidget {
     required this.icon,
     required this.tone,
     required this.label,
-    this.showLabel = true,
     required this.onPressed,
   });
 
@@ -35,29 +33,27 @@ class ApplicationTitlebarIndicator extends StatelessWidget {
       fontFeatures: const [FontFeature('cpsp')],
     );
 
-    return Semantics(
-      label: showLabel ? null : label,
-      child: SizedBox(
-        height: height,
-        child: Material(
-          color: color.withAlpha(30),
+    return SizedBox(
+      height: height,
+      child: Material(
+        color: color.withAlpha(30),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        child: InkWell(
+          // a pill without an action still lights up on hover, as hovering opens its card
+          onTap: onPressed ?? () {},
+          mouseCursor: onPressed == null ? SystemMouseCursors.basic : SystemMouseCursors.click,
+          highlightColor: onPressed == null ? Colors.transparent : null,
           borderRadius: BorderRadius.circular(AppRadius.control),
-          child: InkWell(
-            // a pill without an action still lights up on hover, as hovering opens its card
-            onTap: onPressed ?? () {},
-            mouseCursor: onPressed == null ? SystemMouseCursors.basic : SystemMouseCursors.click,
-            highlightColor: onPressed == null ? Colors.transparent : null,
-            borderRadius: BorderRadius.circular(AppRadius.control),
-            hoverColor: color.withAlpha(36),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 16, color: color),
-                  if (showLabel) ...[const SizedBox(width: 8), Text(label.toUpperCase(), style: textStyle)],
-                ],
-              ),
+          hoverColor: color.withAlpha(36),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 8),
+                Text(label.toUpperCase(), style: textStyle),
+              ],
             ),
           ),
         ),

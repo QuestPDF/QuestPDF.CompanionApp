@@ -7,9 +7,7 @@ import '../state/application_state_provider.dart';
 import 'application_titlebar_card.dart';
 
 class ApplicationTitlebarHotReloadWarning extends ConsumerWidget {
-  final bool showLabel;
-
-  const ApplicationTitlebarHotReloadWarning({super.key, this.showLabel = true});
+  const ApplicationTitlebarHotReloadWarning({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,8 +15,7 @@ class ApplicationTitlebarHotReloadWarning extends ConsumerWidget {
 
     if (!isDocumentHotReloaded) return const SizedBox.shrink();
 
-    return ApplicationTitlebarCard(
-      showLabel: showLabel,
+    return const ApplicationTitlebarCard(
       icon: FontAwesomeIcons.hotReload,
       tone: StatusTone.warning,
       label: "Hot reload",

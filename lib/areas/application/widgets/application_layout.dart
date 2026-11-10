@@ -39,7 +39,7 @@ class ApplicationLayout extends ConsumerWidget {
     final windowMoveableArea = GestureDetector(
       behavior: HitTestBehavior.translucent,
       onPanStart: (details) => windowManager.startDragging(),
-      child: const SizedBox(width: double.infinity, height: AppSizes.barHeight),
+      child: const SizedBox(height: AppSizes.barHeight),
     );
 
     return MouseRegion(

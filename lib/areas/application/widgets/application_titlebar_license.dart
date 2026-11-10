@@ -8,9 +8,7 @@ import '../state/application_state_provider.dart';
 import 'application_titlebar_card.dart';
 
 class ApplicationTitlebarLicense extends ConsumerWidget {
-  final bool showLabel;
-
-  const ApplicationTitlebarLicense({super.key, this.showLabel = true});
+  const ApplicationTitlebarLicense({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,7 +19,6 @@ class ApplicationTitlebarLicense extends ConsumerWidget {
     final licenseDetails = LicenseDetails.of(currentLicense);
 
     return ApplicationTitlebarCard(
-      showLabel: showLabel,
       icon: FontAwesomeIcons.license,
       tone: licenseDetails.tone,
       label: licenseDetails.title,

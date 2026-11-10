@@ -23,7 +23,6 @@ class ApplicationTitlebarCard extends StatelessWidget {
   final IconData icon;
   final StatusTone tone;
   final String label;
-  final bool showLabel;
 
   final String title;
   final List<String> content;
@@ -38,7 +37,6 @@ class ApplicationTitlebarCard extends StatelessWidget {
     required this.icon,
     required this.tone,
     required this.label,
-    this.showLabel = true,
     required this.title,
     required this.content,
     this.code,
@@ -55,13 +53,7 @@ class ApplicationTitlebarCard extends StatelessWidget {
       exitDuration: const Duration(milliseconds: 200),
       child: Padding(
         padding: const EdgeInsets.only(left: 12),
-        child: ApplicationTitlebarIndicator(
-          icon: icon,
-          tone: tone,
-          label: label,
-          showLabel: showLabel,
-          onPressed: action?.open,
-        ),
+        child: ApplicationTitlebarIndicator(icon: icon, tone: tone, label: label, onPressed: action?.open),
       ),
     );
   }
