@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/font_awesome_icons.dart';
+import '../../../shared/keyboard_shortcuts.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
 import '../state/document_hierarchy_search_state.dart';
@@ -19,9 +21,18 @@ class _DocumentHierarchySearchState extends ConsumerState<DocumentHierarchySearc
   @override
   void initState() {
     super.initState();
+    requestSearchFocus();
+  }
 
+  @override
+  void activate() {
+    super.activate();
+    requestSearchFocus();
+  }
+
+  void requestSearchFocus() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
+      if (mounted) _focusNode.requestFocus();
     });
   }
 
@@ -50,17 +61,25 @@ class _DocumentHierarchySearchState extends ConsumerState<DocumentHierarchySearc
           Icon(FontAwesomeIcons.search, color: colors.textSecondary, size: 16),
           const SizedBox(width: 10),
           Flexible(
-            child: TextField(
-              focusNode: _focusNode,
-              style: searchFieldStyle,
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                hintText: "Search elements",
-                hintStyle: TextStyle(color: colors.textMuted),
+            child: Focus(
+              canRequestFocus: false,
+              // Reserve the hierarchy shortcut for the global handler. Ctrl+B otherwise moves the caret on macOS.
+              onKeyEvent: (_, event) => isControlOrCommandPressed() && event.physicalKey == PhysicalKeyboardKey.keyB
+                  ? KeyEventResult.handled
+                  : KeyEventResult.ignored,
+              child: TextField(
+                focusNode: _focusNode,
+                selectAllOnFocus: false,
+                style: searchFieldStyle,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: "Search elements",
+                  hintStyle: TextStyle(color: colors.textMuted),
+                ),
+                onChanged: (x) => Future.microtask(() => searchState.update(x)),
               ),
-              onChanged: (x) => Future.microtask(() => searchState.update(x)),
             ),
           ),
           const SizedBox(width: 16),

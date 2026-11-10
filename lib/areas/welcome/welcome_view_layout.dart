@@ -5,6 +5,7 @@ import '../../shared/font_awesome_icons.dart';
 import '../../shared/questpdf_urls.dart';
 import '../../theme/app_colors.dart';
 import 'welcome_view_automatic_launch.dart';
+import 'welcome_view_connection_error.dart';
 import 'welcome_view_button.dart';
 import 'welcome_view_dot_pattern.dart';
 import 'welcome_view_settings.dart';
@@ -130,6 +131,7 @@ class WelcomeViewLayout extends StatelessWidget {
           ),
           const Divider(),
           const WelcomeViewSettings(),
+          const WelcomeViewConnectionError(),
           const WelcomeViewAutomaticLaunch(),
           const WelcomeViewUpdate(),
         ],

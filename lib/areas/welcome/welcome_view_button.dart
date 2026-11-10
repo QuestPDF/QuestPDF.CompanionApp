@@ -4,6 +4,10 @@ import '../../shared/font_awesome_icons.dart';
 import '../../theme/app_colors.dart';
 
 class WelcomeViewButton extends StatefulWidget {
+  static const double iconSize = 20;
+  static const double iconSpacing = 20;
+  static const EdgeInsets contentPadding = EdgeInsets.symmetric(horizontal: 20, vertical: 16);
+
   final IconData icon;
   final String label;
   final VoidCallback onClick;
@@ -43,11 +47,11 @@ class _WelcomeViewButtonState extends State<WelcomeViewButton> {
       onTap: widget.onClick,
       onHover: (value) => setState(() => isHovered = value),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: WelcomeViewButton.contentPadding,
         child: Row(
           children: [
-            Icon(widget.icon, size: 20, color: toneColor ?? iconColor),
-            const SizedBox(width: 20),
+            Icon(widget.icon, size: WelcomeViewButton.iconSize, color: toneColor ?? iconColor),
+            const SizedBox(width: WelcomeViewButton.iconSpacing),
             Expanded(
               child: Text(
                 widget.label,

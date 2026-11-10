@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:questpdf_companion/areas/generic_exception/generic_exception_view_state_provider.dart';
+import 'package:questpdf_companion/areas/generic_exception/models/generic_exception_details.dart';
 import 'package:questpdf_companion/areas/generic_exception/models/generic_exception_stack_frame.dart';
-import 'package:questpdf_companion/areas/generic_exception/widgets/generic_exception_view_item.dart';
+import 'package:questpdf_companion/areas/generic_exception/models/show_generic_exception_command.dart';
+import 'package:questpdf_companion/areas/generic_exception/widgets/generic_exception_view_layout.dart';
 import 'package:questpdf_companion/theme/app_theme.dart';
 
 GenericExceptionStackFrame frame(String location, {String? file, int? line}) =>
     GenericExceptionStackFrame(location, file, line);
 
-Widget host(List<GenericExceptionStackFrame> stackTrace) {
-  return ProviderScope(
-    child: MaterialApp(
-      theme: buildAppTheme(Brightness.light),
-      home: Scaffold(
-        body: SingleChildScrollView(
-          child: GenericExceptionViewItem(type: 'System.Exception', message: 'Boom', stackTrace: stackTrace),
-        ),
+// every call delivers a new exception, as the library does
+Future<void> showException(WidgetTester tester, List<GenericExceptionStackFrame> stackTrace) async {
+  final exception = GenericExceptionDetails('System.Exception', 'Boom', stackTrace, null);
+  genericExceptionViewStateInstance.setException(ShowGenericExceptionCommand(exception));
+
+  await tester.pumpWidget(
+    ProviderScope(
+      child: MaterialApp(
+        theme: buildAppTheme(Brightness.light),
+        home: const Scaffold(body: GenericExceptionViewLayout()),
       ),
     ),
   );
+  await tester.pump();
 }
 
 final dictionaryFrame = frame('System.Collections.Generic.Dictionary`2.get_Item(TKey key)');
@@ -38,22 +44,19 @@ final mainFrame = frame('MyApp.Program.Main(String[] args)', file: '/app/Program
 void main() {
   testWidgets('default expansion of stack frames', (tester) async {
     // the first frame in user code opens, even when a library frame before it carries source
-    await tester.pumpWidget(host([dictionaryFrame, libraryFrame, invoiceFrame]));
-    await tester.pump();
+    await showException(tester, [dictionaryFrame, libraryFrame, invoiceFrame]);
 
     expect(find.textContaining('Open in'), findsOneWidget);
     expect(find.textContaining('Invoice.cs:42'), findsOneWidget);
     expect(find.textContaining('Text.cs:10'), findsNothing);
 
     // without user code, the first frame with source opens
-    await tester.pumpWidget(host([dictionaryFrame, libraryFrame]));
-    await tester.pump();
+    await showException(tester, [dictionaryFrame, libraryFrame]);
 
     expect(find.textContaining('Text.cs:10'), findsOneWidget);
 
     // the user collapses the suggested frame and opens another one
-    await tester.pumpWidget(host([dictionaryFrame, invoiceFrame, mainFrame]));
-    await tester.pump();
+    await showException(tester, [dictionaryFrame, invoiceFrame, mainFrame]);
     expect(find.textContaining('Invoice.cs:42'), findsOneWidget);
 
     await tester.tap(find.textContaining('Invoice.Compose'));
@@ -69,8 +72,7 @@ void main() {
     final nextInvoiceFrame = frame(invoiceFrame.codeLocation, file: invoiceFrame.fileName, line: invoiceFrame.lineNumber);
     final nextMainFrame = frame(mainFrame.codeLocation, file: mainFrame.fileName, line: mainFrame.lineNumber);
 
-    await tester.pumpWidget(host([dictionaryFrame, nextInvoiceFrame, nextMainFrame]));
-    await tester.pump();
+    await showException(tester, [dictionaryFrame, nextInvoiceFrame, nextMainFrame]);
 
     expect(find.textContaining('Invoice.cs:42'), findsOneWidget);
     expect(find.textContaining('Program.cs:7'), findsNothing);

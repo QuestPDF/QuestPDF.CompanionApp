@@ -4,44 +4,44 @@ import 'package:multi_split_view/multi_split_view.dart';
 
 import '../theme/app_colors.dart';
 import 'application/state/application_state_provider.dart';
-import 'document_hierarchy/state/document_hierarchy_provider.dart';
-import 'document_hierarchy/state/document_hierarchy_search_state.dart';
 import 'document_hierarchy/widgets/document_hierarchy_layout.dart';
 import 'document_hierarchy/widgets/document_hierarchy_show_button.dart';
+import 'document_preview/widgets/document_preview_element_details.dart';
 import 'document_preview/widgets/document_preview_layout.dart';
 
-// the panel can be hidden in the settings, but the search lives in it and brings it back while active
-final isDocumentHierarchyPanelVisibleProvider = Provider<bool>((ref) {
-  final isShown = ref.watch(applicationStateProvider.select((x) => x.showDocumentHierarchy));
-  final isSearchActive = ref.watch(documentHierarchySearchStateProvider.select((x) => x.searchPhrase != null));
-
-  return isShown || isSearchActive;
-});
-
-class DocumentPreviewWithHierarchyView extends ConsumerWidget {
-  static final documentPreviewKey = GlobalKey();
-
+class DocumentPreviewWithHierarchyView extends ConsumerStatefulWidget {
   const DocumentPreviewWithHierarchyView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isPanelVisible = ref.watch(isDocumentHierarchyPanelVisibleProvider);
+  ConsumerState<DocumentPreviewWithHierarchyView> createState() => _DocumentPreviewWithHierarchyViewState();
+}
+
+class _DocumentPreviewWithHierarchyViewState extends ConsumerState<DocumentPreviewWithHierarchyView> {
+  final documentPreviewKey = GlobalKey();
+  final searchKey = GlobalKey();
+
+  // the split view calls its area builders on every layout, so a fresh widget instance would rebuild the whole
+  // structure tree on each resize frame and each divider move; identical instances are skipped by the framework
+  late final hierarchyLayout = DocumentHierarchyLayout(searchKey: searchKey);
+  late final previewLayout = DocumentPreviewLayout(key: documentPreviewKey, searchKey: searchKey);
+
+  @override
+  Widget build(BuildContext context) {
+    final isPanelVisible = ref.watch(applicationStateProvider.select((x) => x.showDocumentHierarchy));
 
     if (!isPanelVisible) {
-      final hasElementDetails = ref.watch(
-        documentHierarchyProvider.select((x) => x.selectedElement != null && x.selectedElementPageLocationIndex != null),
-      );
+      final hasTopBar = ref.watch(isDocumentPreviewToolbarVisibleProvider);
 
       return Stack(
         fit: StackFit.expand,
         children: [
-          DocumentPreviewLayout(key: documentPreviewKey),
+          previewLayout,
           AnimatedPositioned(
             duration: const Duration(milliseconds: 150),
             curve: Curves.easeOutCubic,
-            top: hasElementDetails ? DocumentHierarchyShowButton.detailsBarTop : DocumentHierarchyShowButton.inset,
+            top: hasTopBar ? DocumentHierarchyShowButton.detailsBarTop : DocumentHierarchyShowButton.inset,
             left: DocumentHierarchyShowButton.inset,
-            child: const DocumentHierarchyShowButton(),
+            child: DocumentHierarchyShowButton(alwaysVisible: hasTopBar),
           ),
         ],
       );
@@ -63,8 +63,8 @@ class DocumentPreviewWithHierarchyView extends ConsumerWidget {
           );
         },
         initialAreas: [
-          Area(size: 300, min: 250, max: 600, builder: (context, area) => const DocumentHierarchyLayout()),
-          Area(builder: (context, area) => DocumentPreviewLayout(key: documentPreviewKey)),
+          Area(size: 300, min: 250, max: 600, builder: (context, area) => hierarchyLayout),
+          Area(builder: (context, area) => previewLayout),
         ],
       ),
     );

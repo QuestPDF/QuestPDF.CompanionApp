@@ -183,7 +183,7 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
     setState(() {
       pagePositions = planPagePositions();
       totalDocumentHeight = pages.sumBy((x) => x.height) + (pages.length + 1) * pageSpacing;
-      totalDocumentWidth = pages.map((x) => x.width).max()! + 2 * pageSpacing;
+      totalDocumentWidth = (pages.map((x) => x.width).max() ?? 0) + 2 * pageSpacing;
     });
   }
 
@@ -198,14 +198,16 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
     flingController.stop();
     documentHierarchyProviderInstance.setSelectedElement(null);
 
-    final scrollDelta = event.scrollDelta.dy / scrollPointsPerWheelTick;
+    final scrollDelta = event.scrollDelta / scrollPointsPerWheelTick;
 
     if (HardwareKeyboard.instance.isControlPressed) {
-      zoomBy(1 / exp(scrollDelta * scrollZoomSensitivity), event.localPosition);
+      zoomBy(1 / exp(scrollDelta.dy * scrollZoomSensitivity), event.localPosition);
     } else if (HardwareKeyboard.instance.isShiftPressed) {
-      panBy(Offset(-scrollDelta * scrollPanSensitivity, 0));
+      // Some devices already send a horizontal delta while Shift is held.
+      final horizontalDelta = scrollDelta.dx != 0 ? scrollDelta.dx : scrollDelta.dy;
+      panBy(Offset(-horizontalDelta * scrollPanSensitivity, 0));
     } else {
-      panBy(Offset(0, -scrollDelta * scrollPanSensitivity));
+      panBy(-scrollDelta * scrollPanSensitivity);
     }
   }
 
@@ -384,6 +386,8 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
   }
 
   void zoomOnElement(DocumentHierarchyElement element, int pageLocationIndex) {
+    if (pageLocationIndex < 0 || pageLocationIndex >= element.pageLocations.length) return;
+
     final location = element.pageLocations[pageLocationIndex];
     zoomOn(location.pageNumber, location.toRect(), zoomScalePadding: 2);
   }
@@ -391,7 +395,7 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
   void zoomOnPage() {
     final pageNumber = documentPreviewPointerLocationStateInstance.state?.pageNumber;
 
-    if (pageNumber == null) return;
+    if (pageNumber == null || pageNumber < 1 || pageNumber > pagePositions.length) return;
 
     final page = pagePositions[pageNumber - 1];
     zoomOn(pageNumber, Rect.fromLTWH(0, 0, page.position.width, page.position.height).inflate(pageSpacing));
@@ -399,6 +403,8 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
 
   void zoomOn(int pageNumber, Rect location, {double zoomScalePadding = 1}) {
     const maxZoom = 3.0;
+
+    if (pageNumber < 1 || pageNumber > pagePositions.length) return;
 
     flingController.stop();
 
@@ -505,6 +511,8 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
         onDoubleTap: onDoubleTap,
         onScaleStart: (details) {
           flingController.stop();
+          // Trackpads start pan/zoom gestures without a PointerDown event.
+          documentHierarchyProviderInstance.setSelectedElement(null);
           scaleOnGestureStart = 1;
         },
         onScaleUpdate: (details) {
@@ -615,7 +623,7 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
 
     isHighResolution = MediaQuery.of(context).devicePixelRatio > 1;
 
-    if (widget.selectedElement != null) {
+    if (widget.selectedElement != null && widget.selectedElementLocationIndex != null) {
       zoomOnElement(widget.selectedElement!, widget.selectedElementLocationIndex!);
     }
 

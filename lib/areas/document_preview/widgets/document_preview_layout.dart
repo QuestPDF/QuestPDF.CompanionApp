@@ -9,7 +9,9 @@ import '../state/document_viewer_state_provider.dart';
 import 'document_preview_element_details.dart';
 
 class DocumentPreviewLayout extends ConsumerWidget {
-  const DocumentPreviewLayout({super.key});
+  final Key? searchKey;
+
+  const DocumentPreviewLayout({super.key, this.searchKey});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,7 +33,12 @@ class DocumentPreviewLayout extends ConsumerWidget {
           selectedElementLocationIndex: selectedElementPageLocationIndex,
           manualMeasurementResult: documentHierarchyManualMeasurement.manualMeasurementResult,
         ),
-        const Positioned.fill(bottom: null, child: DocumentPreviewElementDetails()),
+        Positioned.fill(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: DocumentPreviewElementDetails(searchKey: searchKey),
+          ),
+        ),
       ],
     );
   }

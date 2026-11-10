@@ -245,10 +245,10 @@ packages:
     dependency: "direct dev"
     description:
       name: fastforge
-      sha256: df33fecad3b2a4628fa7c48b5e8568ed81ed4db575d3f7bd6c62d944655455df
+      sha256: a6971dd1a5aed9ad773be9da30020349c923f7ec71c32990df503ee331513ce9
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.13"
+    version: "0.6.14"
   ffi:
     dependency: transitive
     description:
@@ -298,10 +298,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_app_packager
-      sha256: fc68d74d7b47934c6d495c981066a656d04357a4b6420044bd12ae03464ccb5f
+      sha256: "76cf57d10e4c554ec2936ce076fa43106b68d5a12722f89fd60d17e268a2a744"
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.12"
+    version: "0.6.13"
   flutter_app_publisher:
     dependency: transitive
     description:
@@ -748,10 +748,10 @@ packages:
     dependency: "direct main"
     description:
       name: process_run
-      sha256: "38569f39f8057275d6832a25f985fbea23d251a905270eacdfc6c86437282224"
+      sha256: fafc17be1feb80b23148b0983f00a6b6e14e2b98e1369662c314767780be8dc6
       url: "https://pub.dev"
     source: hosted
-    version: "1.4.2"
+    version: "1.4.3"
   pub_semver:
     dependency: transitive
     description:
@@ -1049,10 +1049,10 @@ packages:
     dependency: transitive
     description:
       name: unified_distributor
-      sha256: b86af602308e906a0e095602326e3fccb3a77079b83c530c1dad7bb2cfd9e100
+      sha256: "7915672b63a3d958299df7be67884a7ea4b64e84447f598d32dc3fdba8e2f0a0"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.13"
+    version: "0.2.14"
   url_launcher:
     dependency: "direct main"
     description:

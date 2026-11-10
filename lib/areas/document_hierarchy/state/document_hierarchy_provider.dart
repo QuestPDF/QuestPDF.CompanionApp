@@ -112,7 +112,7 @@ class DocumentHierarchyState extends ChangeNotifier {
   }
 
   void changeSelectedElementPageNumberVisibility(int direction) {
-    if (selectedElement == null) return;
+    if (selectedElement == null || selectedElement!.pageLocations.isEmpty) return;
 
     selectedElementPageLocationIndex =
         (selectedElementPageLocationIndex! + direction) % selectedElement!.pageLocations.length;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:process_run/process_run.dart';
@@ -8,15 +9,43 @@ import '../areas/application/state/application_state_provider.dart';
 Future<void> openSourceCodePathInEditor(CodeEditor editor, String filePath, int lineNumber) async {
   if (filePath.isEmpty) return;
 
-  final shell = Shell(throwOnError: true, runInShell: true);
+  final command = buildSourceCodeEditorCommand(editor, filePath, lineNumber, isWindows: Platform.isWindows);
+  final shell = Shell(throwOnError: true, runInShell: false, environment: command.environment);
+  await shell.runExecutableArguments(command.executable, command.arguments);
+}
 
-  final command = switch (editor) {
-    CodeEditor.rider => 'rider --line $lineNumber ${shellArgument(filePath)}',
-    CodeEditor.visualCode => 'code -g ${shellArgument('$filePath:$lineNumber')}',
-    CodeEditor.visualStudio => 'start devenv /Command "Edit.Goto $lineNumber" ${shellArgument(filePath)}',
+@visibleForTesting
+({String executable, List<String> arguments, Map<String, String> environment}) buildSourceCodeEditorCommand(
+  CodeEditor editor,
+  String filePath,
+  int lineNumber, {
+  required bool isWindows,
+}) {
+  final (executable, arguments) = switch (editor) {
+    CodeEditor.rider => ('rider', ['--line', '$lineNumber', filePath]),
+    CodeEditor.visualCode => ('code', ['-g', '$filePath:$lineNumber']),
+    CodeEditor.visualStudio => ('devenv', ['/Command', 'Edit.Goto $lineNumber', filePath]),
   };
 
-  await shell.run(command);
+  if (!isWindows) return (executable: executable, arguments: arguments, environment: {});
+
+  // These characters cannot occur in a Windows file path and could break its quotes.
+  if (filePath.contains(RegExp('["\\r\\n\\x00]'))) {
+    throw ArgumentError.value(filePath, 'filePath', 'Invalid Windows source file path');
+  }
+
+  final editorCommand = '$executable ${arguments.map((argument) => '"$argument"').join(' ')}';
+  final command = editor == CodeEditor.visualStudio ? 'start "" $editorCommand' : editorCommand;
+
+  // Windows editor launchers can be .cmd files. Expand one environment variable
+  // inside cmd so Dart does not re-escape its quotes, and literal percent signs
+  // in the path are not expanded again. Disable AutoRun and delayed ! expansion.
+  const commandVariable = 'QUESTPDF_COMPANION_EDITOR_COMMAND';
+  return (
+    executable: 'cmd.exe',
+    arguments: ['/d', '/v:off', '/c', '%$commandVariable%'],
+    environment: {commandVariable: command},
+  );
 }
 
 Future<void> tryOpenSourceCodePathInEditor(
