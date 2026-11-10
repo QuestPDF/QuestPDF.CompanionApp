@@ -52,7 +52,8 @@ class MacOsCommandLineAliasInstaller {
 
     if (result.exitCode == 0) return;
 
-    if (result.stderr.toString().contains('User canceled')) throw MacOsCommandLineAliasCancelledException();
+    // the message is localized ("User canceled", "User cancelled", ...); the error number is not
+    if (result.stderr.toString().contains('(-128)')) throw MacOsCommandLineAliasCancelledException();
 
     throw Exception('Failed to run "$command" (exit code ${result.exitCode}): ${result.stderr}');
   }

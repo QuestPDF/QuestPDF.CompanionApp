@@ -50,6 +50,7 @@ class QuestPdfCompanionApp extends ConsumerWidget {
       shortcuts: shortcuts,
       home: const ApplicationLayout(),
       debugShowCheckedModeBanner: false,
+      showPerformanceOverlay: false,
     );
   }
 }

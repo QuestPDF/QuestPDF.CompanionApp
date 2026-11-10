@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../../theme/app_theme.dart';
 import '../state/application_state_provider.dart';
 import 'application_titlebar_hot_reload_warning.dart';
 import 'application_titlebar_license.dart';
@@ -62,15 +61,16 @@ class _ApplicationTitlebarState extends ConsumerState<ApplicationTitlebar> with 
       children: [
         SizedBox(width: leadingInset),
         const ApplicationTitlebarLogo(),
-        // pills are right-aligned; those that do not fit wrap into a clipped second row and disappear
+        // pills are right-aligned; when they do not fit, the leftmost ones are cut off at the left edge
         Expanded(
           child: ClipRect(
-            child: SizedBox(
-              height: AppSizes.barHeight,
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                runSpacing: AppSizes.barHeight,
+            // lets the row keep its natural width, anchored to the right edge, so the overflow is cut on the left
+            child: OverflowBox(
+              alignment: Alignment.centerRight,
+              minWidth: 0,
+              maxWidth: double.infinity,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // the welcome screen lists an available update in its own menu
                   if (currentMode != ApplicationMode.welcomeScreen) ...const [

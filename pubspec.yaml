@@ -74,7 +74,7 @@ flutter:
   assets:
     - assets/questpdf-logo-light.png
     - assets/questpdf-logo-dark.png
-    - assets/grain.png
+    - assets/grain-dark.png
     - assets/JetBrainsMono.ttf
     - assets/fonts/Inter-LICENSE.txt
 

@@ -35,6 +35,12 @@ class DotnetStackFrameSignature {
     var method = segments.removeLast();
     String? origin;
 
+    // constructors are named `.ctor` and `.cctor`, so the split leaves an empty segment before them: `Type..ctor`
+    if ((method == 'ctor' || method == 'cctor') && segments.isNotEmpty && segments.last.isEmpty) {
+      segments.removeLast();
+      method = '.$method';
+    }
+
     // async methods and iterators run inside a generated state machine type: `<Method>d__12.MoveNext()`
     final stateMachine = segments.isEmpty ? null : _stateMachineTypePattern.firstMatch(segments.last);
 

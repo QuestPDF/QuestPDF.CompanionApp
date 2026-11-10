@@ -68,6 +68,21 @@ void main() {
     expect(signature.origin, isNull);
   });
 
+  test('constructors keep their type and leading dot', () {
+    final instance = DotnetStackFrameSignature.parse('MyApp.Reports.InvoiceDocument..ctor(InvoiceModel model)');
+
+    expect(instance.namespace, 'MyApp.Reports');
+    expect(instance.typeName, 'InvoiceDocument');
+    expect(instance.methodName, '.ctor');
+    expect(instance.origin, isNull);
+
+    final static = DotnetStackFrameSignature.parse('Settings..cctor()');
+
+    expect(static.namespace, '');
+    expect(static.typeName, 'Settings');
+    expect(static.methodName, '.cctor');
+  });
+
   test('async method state machine', () {
     final signature = DotnetStackFrameSignature.parse(
       'QuestPDF.Companion.CompanionSession.<GenerateDocumentSnapshot>d__25.MoveNext()',
