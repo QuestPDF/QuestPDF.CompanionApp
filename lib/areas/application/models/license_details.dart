@@ -11,7 +11,7 @@ class LicenseDetails {
   static LicenseDetails of(LicenseType license) {
     return switch (license) {
       LicenseType.evaluation => const LicenseDetails(
-        title: "Evaluation Mode",
+        title: "Evaluation",
         description: "For internal testing, technical review and proof-of-concept work only, not for production. Organizations that do not qualify for the Community license can evaluate QuestPDF for up to 60 days before choosing a paid license.",
         tone: StatusTone.error,
       ),
