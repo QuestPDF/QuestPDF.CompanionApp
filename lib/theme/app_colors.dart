@@ -93,7 +93,7 @@ class AppColors extends ThemeExtension<AppColors> {
     textSecondary: Color(0x9CFFFFFF),
     textMuted: Color(0x65FFFFFF),
     accent: Color(0xFF4C8DFF),
-    highlight: Color(0xFF89AFFF),
+    highlight: Color(0xFF69BDFF),
     treeSelection: Color(0xFF404659),
     info: Color(0xFF2196F3),
     error: Color(0xFFF97066),
