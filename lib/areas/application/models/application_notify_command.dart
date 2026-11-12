@@ -5,10 +5,9 @@ part 'application_notify_command.g.dart';
 
 @JsonSerializable()
 class ApplicationNotifyCommand {
-  final String clientId;
   final LicenseType license;
 
-  ApplicationNotifyCommand(this.clientId, this.license);
+  ApplicationNotifyCommand(this.license);
 
   factory ApplicationNotifyCommand.fromJson(Map<String, dynamic> json) => _$ApplicationNotifyCommandFromJson(json);
 
