@@ -27,6 +27,10 @@ class TreeViewItemState<TContent> extends State<TreeViewItem<TContent>> {
 
   static const TextStyle labelStyle = TextStyle(fontWeight: FontWeight.w400);
   static const TextStyle highlightedLabelStyle = TextStyle(fontWeight: FontWeight.w500);
+
+  // dark text on a light background reads thinner, so highlighted labels get one weight step more
+  static const TextStyle highlightedLabelStyleLight = TextStyle(fontWeight: FontWeight.w600);
+
   static const TextStyle hintStyle = TextStyle(fontWeight: FontWeight.w300);
 
   static const double lowEmphasisOpacity = 0.5;
@@ -188,7 +192,9 @@ class TreeViewItemState<TContent> extends State<TreeViewItem<TContent>> {
   }
 
   Widget buildLabel() {
-    final targetLabelStyle = node.isHighlighted ? highlightedLabelStyle : labelStyle;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final highlightedStyle = isDark ? highlightedLabelStyle : highlightedLabelStyleLight;
+    final targetLabelStyle = node.isHighlighted ? highlightedStyle : labelStyle;
 
     return Text(node.label, style: targetLabelStyle.copyWith(color: getContentColor()));
   }
