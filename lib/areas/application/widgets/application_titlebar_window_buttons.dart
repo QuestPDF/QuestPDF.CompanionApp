@@ -4,6 +4,7 @@ import 'package:window_manager/window_manager.dart';
 import '../../../shared/font_awesome_icons.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
+import 'application_titlebar_window_gestures.dart';
 
 class ApplicationTitlebarWindowButtons extends StatelessWidget {
   const ApplicationTitlebarWindowButtons({super.key});
@@ -53,13 +54,7 @@ class ApplicationTitlebarWindowButtons extends StatelessWidget {
         IconButton(
           icon: const Icon(FontAwesomeIcons.maximize, size: iconSize),
           style: buttonStyle,
-          onPressed: () async {
-            if (await windowManager.isMaximized()) {
-              await windowManager.unmaximize();
-            } else {
-              await windowManager.maximize();
-            }
-          },
+          onPressed: toggleWindowMaximized,
         ),
         IconButton(
           icon: const Icon(FontAwesomeIcons.close, size: iconSize),
