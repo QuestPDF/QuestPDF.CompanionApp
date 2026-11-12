@@ -32,6 +32,15 @@ final communicationServiceInstance = CommunicationService();
 class CommunicationService {
   static const _maxRequestBodyBytes = 128 * 1024 * 1024;
   static const _parseInIsolateThresholdBytes = 256 * 1024;
+  static const _supportedApiVersions = [2, 3, 4];
+  static const _clientIdHeader = 'X-QuestPDF-Client-Id';
+  static const _codeLocationIdHeader = 'X-QuestPDF-Code-Location-Id';
+
+  // The preview session belongs to a single ShowInCompanion call, identified by its client id.
+  // The code location id is shared by all runs of the same application.
+  String? _currentClientId;
+  String? _currentCodeLocationId;
+  final _rejectedClientIds = <String>{};
 
   DateTime? _lastCommunication;
   Timer? _connectionTimer;
@@ -125,7 +134,7 @@ class CommunicationService {
   Future<void> _closeServer() async {
     _connectionTimer?.cancel();
     _connectionTimer = null;
-    _lastCommunication = null;
+    _endSession();
 
     final previousServer = server;
     server = null;
@@ -140,8 +149,44 @@ class CommunicationService {
     // e.g. when dotnet watch rebuilds it after a code change that cannot be hot reloaded
     if (DateTime.now().difference(_lastCommunication!).inSeconds < 5) return;
 
-    _lastCommunication = null;
+    _endSession();
     applicationStateProviderInstance.changeMode(ApplicationMode.welcomeScreen);
+  }
+
+  // The client that held the session is rejected when it comes back, so its ShowInCompanion call ends.
+  void _endSession() {
+    if (_currentClientId != null) _rejectedClientIds.add(_currentClientId!);
+
+    _currentClientId = null;
+    _currentCodeLocationId = null;
+    _lastCommunication = null;
+  }
+
+  bool _acceptClient(HttpRequest request) {
+    final clientId = request.headers.value(_clientIdHeader);
+    final codeLocationId = request.headers.value(_codeLocationIdHeader);
+
+    if (clientId != _currentClientId) {
+      // libraries using API versions 2 and 3 send no id, and wait until the identified application is gone
+      if (clientId == null || _rejectedClientIds.contains(clientId)) return false;
+
+      final isAnotherApplication = _currentClientId != null && codeLocationId != _currentCodeLocationId;
+
+      // the session is held by another application: the new client is the rejected one
+      if (isAnotherApplication) {
+        _rejectedClientIds.add(clientId);
+        return false;
+      }
+
+      // a new run of the same application (e.g. restarted by dotnet watch, or another ShowInCompanion call)
+      // takes over: ending the session rejects the previous client
+      _endSession();
+      _currentClientId = clientId;
+      _currentCodeLocationId = codeLocationId;
+    }
+
+    _lastCommunication = DateTime.now();
+    return true;
   }
 
   Future<void> _handleRequest(HttpRequest request) async {
@@ -150,6 +195,14 @@ class CommunicationService {
 
       if (handler == null) {
         request.response.statusCode = HttpStatus.notFound;
+        return;
+      }
+
+      // versioned requests belong to the preview session; the other ones only discover the application
+      final isSessionRequest = request.uri.path.startsWith(RegExp(r'/v\d+/'));
+
+      if (isSessionRequest && !_acceptClient(request)) {
+        request.response.statusCode = HttpStatus.conflict;
         return;
       }
 
@@ -181,6 +234,8 @@ class CommunicationService {
     final path = request.uri.path;
     final method = request.method;
 
+    if (path == '/questpdf-companion' && method == 'GET') return _handleIdentityRequest;
+
     if (path == '/ping' && method == 'GET') return _handlePingRequest;
 
     if (path == '/version' && method == 'GET') return _handleVersionRequest;
@@ -188,7 +243,8 @@ class CommunicationService {
     // API versions 2 and 3 are nearly identical: version 3 introduced new license type (evaluation),
     // this change requires new API version to avoid breaking changes in newer library versions,
     // but implementation can be backwards compatible, so both versions are handled in the same way.
-    for (var i in [2, 3]) {
+    // Version 4 identifies the client in request headers, and expects a conflict response once it is rejected.
+    for (var i in _supportedApiVersions) {
       if (path == '/v$i/notify' && method == 'POST') return _handleNotifyRequest;
 
       if (path == '/v$i/documentPreview/update' && method == 'POST') return _handlePreviewUpdate;
@@ -231,13 +287,18 @@ class CommunicationService {
   static List<PageSnapshotRendered> _parseRenderedPages(Uint8List body) =>
       UpdatePageSnapshotsCommand.fromJson(jsonDecode(utf8.decode(body))).pages;
 
+  // Lets the library tell the Companion app apart from any other program listening on the port.
+  Future<void> _handleIdentityRequest(HttpRequest request) async {
+    request.response
+      ..headers.contentType = ContentType.text
+      ..write('QuestPDF Companion');
+  }
+
   Future<void> _handlePingRequest(HttpRequest request) async {
     request.response.statusCode = HttpStatus.ok;
   }
 
   Future<void> _handleNotifyRequest(HttpRequest request) async {
-    _lastCommunication = DateTime.now();
-
     final body = await _readRequestBody(request);
     final notifyCommand = ApplicationNotifyCommand.fromJson(jsonDecode(utf8.decode(body)));
 
@@ -247,7 +308,7 @@ class CommunicationService {
   }
 
   Future<void> _handleVersionRequest(HttpRequest request) async {
-    final response = ApplicationSupportedApiResponse([2, 3]);
+    final response = ApplicationSupportedApiResponse(_supportedApiVersions);
 
     request.response
       ..headers.contentType = ContentType.json
@@ -273,6 +334,9 @@ class CommunicationService {
     List<PageSnapshotIndex> neededImages = [];
 
     for (int i = 0; i < 100; i++) {
+      // the session may have been taken over or ended while this client was waiting
+      if (request.headers.value(_clientIdHeader) != _currentClientId) break;
+
       neededImages = documentPreviewImageCacheStateInstance.getNeededImages();
 
       if (neededImages.isNotEmpty) break;

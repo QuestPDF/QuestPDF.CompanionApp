@@ -72,6 +72,23 @@ Future<bool> isListening(int port) async {
   }
 }
 
+Future<int> notify(int port, {String? clientId, String? codeLocationId, int apiVersion = 4}) async {
+  final client = HttpClient();
+
+  try {
+    final request = await client.postUrl(Uri.parse('http://127.0.0.1:$port/v$apiVersion/notify'));
+    if (clientId != null) request.headers.set('X-QuestPDF-Client-Id', clientId);
+    if (codeLocationId != null) request.headers.set('X-QuestPDF-Code-Location-Id', codeLocationId);
+    request.write('{"license":"community"}');
+
+    final response = await request.close();
+    await response.drain<void>();
+    return response.statusCode;
+  } finally {
+    client.close(force: true);
+  }
+}
+
 void main() {
   final service = communicationServiceInstance;
   setUp(service.stopServer);
@@ -176,13 +193,16 @@ void main() {
     addTearDown(() => client.close(force: true));
     final base = 'http://127.0.0.1:${ports[1]}';
 
+    final identity = await (await client.getUrl(Uri.parse('$base/questpdf-companion'))).close();
+    expect(identity.statusCode, HttpStatus.ok);
+    expect(await utf8.decoder.bind(identity).join(), 'QuestPDF Companion');
     final ping = await (await client.getUrl(Uri.parse('$base/ping'))).close();
     expect(ping.statusCode, HttpStatus.ok);
     await ping.drain<void>();
     final version = await (await client.getUrl(Uri.parse('$base/version'))).close();
     expect(version.statusCode, HttpStatus.ok);
     expect(jsonDecode(await utf8.decoder.bind(version).join()), {
-      'supportedVersions': [2, 3],
+      'supportedVersions': [2, 3, 4],
     });
     final missing = await (await client.getUrl(Uri.parse('$base/missing'))).close();
     expect(missing.statusCode, HttpStatus.notFound);
@@ -193,6 +213,60 @@ void main() {
     expect(malformed.statusCode, HttpStatus.badRequest);
     await malformed.drain<void>();
     expect(await isListening(ports[0]), isFalse);
+  });
+
+  test('only one application holds the preview session', () async {
+    final port = (await freePorts(1)).single;
+    await service.startServer(port);
+
+    // libraries using API versions 2 and 3 send no client id
+    expect(await notify(port, apiVersion: 3), HttpStatus.ok);
+
+    expect(await notify(port, clientId: 'invoice-1', codeLocationId: '%2Fapps%2Finvoice%2F'), HttpStatus.ok);
+    expect(await notify(port, clientId: 'report-1', codeLocationId: '%2Fapps%2Freport%2F'), HttpStatus.conflict);
+    expect(await notify(port, apiVersion: 3), HttpStatus.conflict);
+    expect(await notify(port, clientId: 'invoice-1', codeLocationId: '%2Fapps%2Finvoice%2F'), HttpStatus.ok);
+
+    // discovery requests carry no client id, and are answered regardless of the session
+    for (final path in ['questpdf-companion', 'ping', 'version']) {
+      final response = await (await HttpClient().getUrl(Uri.parse('http://127.0.0.1:$port/$path'))).close();
+      expect(response.statusCode, HttpStatus.ok);
+      await response.drain<void>();
+    }
+  });
+
+  test('a new run of the same application takes over the preview session', () async {
+    final port = (await freePorts(1)).single;
+    await service.startServer(port);
+
+    expect(await notify(port, clientId: 'restart-1', codeLocationId: '%2Fapps%2Frestart%2F'), HttpStatus.ok);
+    expect(await notify(port, clientId: 'restart-2', codeLocationId: '%2Fapps%2Frestart%2F'), HttpStatus.ok);
+    expect(await notify(port, clientId: 'restart-1', codeLocationId: '%2Fapps%2Frestart%2F'), HttpStatus.conflict);
+    expect(await notify(port, clientId: 'restart-2', codeLocationId: '%2Fapps%2Frestart%2F'), HttpStatus.ok);
+  });
+
+  test('a silent client is rejected once the welcome screen is back', () async {
+    final port = (await freePorts(1)).single;
+    await service.startServer(port);
+
+    expect(await notify(port, clientId: 'silent-1', codeLocationId: '%2Fapps%2Fsilent%2F'), HttpStatus.ok);
+    expect(await notify(port, clientId: 'other-0', codeLocationId: '%2Fapps%2Fother%2F'), HttpStatus.conflict);
+    applicationStateProviderInstance.changeMode(ApplicationMode.documentPreview);
+
+    // the real inactivity timeout: five seconds, checked every second
+    final welcomeScreenIsBack = Completer<void>();
+    void onModeChanged() {
+      if (applicationStateProviderInstance.currentMode != ApplicationMode.welcomeScreen) return;
+      if (!welcomeScreenIsBack.isCompleted) welcomeScreenIsBack.complete();
+    }
+
+    applicationStateProviderInstance.addListener(onModeChanged);
+    addTearDown(() => applicationStateProviderInstance.removeListener(onModeChanged));
+    await welcomeScreenIsBack.future.timeout(const Duration(seconds: 10));
+
+    expect(await notify(port, clientId: 'silent-1', codeLocationId: '%2Fapps%2Fsilent%2F'), HttpStatus.conflict);
+    expect(await notify(port, clientId: 'other-0', codeLocationId: '%2Fapps%2Fother%2F'), HttpStatus.conflict);
+    expect(await notify(port, clientId: 'other-1', codeLocationId: '%2Fapps%2Fother%2F'), HttpStatus.ok);
   });
 
   test('bind failures retry every five seconds and recover without clearing the error between attempts', () async {
