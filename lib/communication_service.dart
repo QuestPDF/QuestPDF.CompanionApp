@@ -37,9 +37,10 @@ class CommunicationService {
   static const _codeLocationIdHeader = 'X-QuestPDF-Code-Location-Id';
 
   // The preview session belongs to a single ShowInCompanion call, identified by its client id.
-  // The code location id is shared by all runs of the same application.
+  // The code location id is shared by all runs of the same application; it does not affect who holds the session.
   String? _currentClientId;
   String? _currentCodeLocationId;
+
   final _rejectedClientIds = <String>{};
 
   DateTime? _lastCommunication;
@@ -164,25 +165,16 @@ class CommunicationService {
 
   bool _acceptClient(HttpRequest request) {
     final clientId = request.headers.value(_clientIdHeader);
-    final codeLocationId = request.headers.value(_codeLocationIdHeader);
 
     if (clientId != _currentClientId) {
       // libraries using API versions 2 and 3 send no id, and wait until the identified application is gone
       if (clientId == null || _rejectedClientIds.contains(clientId)) return false;
 
-      final isAnotherApplication = _currentClientId != null && codeLocationId != _currentCodeLocationId;
-
-      // the session is held by another application: the new client is the rejected one
-      if (isAnotherApplication) {
-        _rejectedClientIds.add(clientId);
-        return false;
-      }
-
-      // a new run of the same application (e.g. restarted by dotnet watch, or another ShowInCompanion call)
-      // takes over: ending the session rejects the previous client
+      // the newest ShowInCompanion call takes over, whether it comes from another application
+      // or from a new run of the same one (e.g. restarted by dotnet watch): ending the session rejects the previous client
       _endSession();
       _currentClientId = clientId;
-      _currentCodeLocationId = codeLocationId;
+      _currentCodeLocationId = request.headers.value(_codeLocationIdHeader);
     }
 
     _lastCommunication = DateTime.now();

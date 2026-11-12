@@ -215,17 +215,33 @@ void main() {
     expect(await isListening(ports[0]), isFalse);
   });
 
-  test('only one application holds the preview session', () async {
+  test('the newest client takes over the preview session', () async {
+    final port = (await freePorts(1)).single;
+    await service.startServer(port);
+
+    // another application, or a new run of the same one: both arrive with a new client id
+    expect(await notify(port, clientId: 'invoice-1', codeLocationId: '%2Fapps%2Finvoice%2F'), HttpStatus.ok);
+    expect(service.currentCodeLocationId, '%2Fapps%2Finvoice%2F');
+
+    expect(await notify(port, clientId: 'report-1', codeLocationId: '%2Fapps%2Freport%2F'), HttpStatus.ok);
+    expect(service.currentCodeLocationId, '%2Fapps%2Freport%2F');
+
+    // the rejected client does not change the stored code location
+    expect(await notify(port, clientId: 'invoice-1', codeLocationId: '%2Fapps%2Finvoice%2F'), HttpStatus.conflict);
+    expect(service.currentCodeLocationId, '%2Fapps%2Freport%2F');
+    expect(await notify(port, clientId: 'report-1', codeLocationId: '%2Fapps%2Freport%2F'), HttpStatus.ok);
+  });
+
+  test('a client without an id cannot take over the preview session', () async {
     final port = (await freePorts(1)).single;
     await service.startServer(port);
 
     // libraries using API versions 2 and 3 send no client id
     expect(await notify(port, apiVersion: 3), HttpStatus.ok);
 
-    expect(await notify(port, clientId: 'invoice-1', codeLocationId: '%2Fapps%2Finvoice%2F'), HttpStatus.ok);
-    expect(await notify(port, clientId: 'report-1', codeLocationId: '%2Fapps%2Freport%2F'), HttpStatus.conflict);
+    expect(await notify(port, clientId: 'identified-1'), HttpStatus.ok);
     expect(await notify(port, apiVersion: 3), HttpStatus.conflict);
-    expect(await notify(port, clientId: 'invoice-1', codeLocationId: '%2Fapps%2Finvoice%2F'), HttpStatus.ok);
+    expect(await notify(port, clientId: 'identified-1'), HttpStatus.ok);
 
     // discovery requests carry no client id, and are answered regardless of the session
     for (final path in ['questpdf-companion', 'ping', 'version']) {
@@ -235,22 +251,11 @@ void main() {
     }
   });
 
-  test('a new run of the same application takes over the preview session', () async {
-    final port = (await freePorts(1)).single;
-    await service.startServer(port);
-
-    expect(await notify(port, clientId: 'restart-1', codeLocationId: '%2Fapps%2Frestart%2F'), HttpStatus.ok);
-    expect(await notify(port, clientId: 'restart-2', codeLocationId: '%2Fapps%2Frestart%2F'), HttpStatus.ok);
-    expect(await notify(port, clientId: 'restart-1', codeLocationId: '%2Fapps%2Frestart%2F'), HttpStatus.conflict);
-    expect(await notify(port, clientId: 'restart-2', codeLocationId: '%2Fapps%2Frestart%2F'), HttpStatus.ok);
-  });
-
   test('a silent client is rejected once the welcome screen is back', () async {
     final port = (await freePorts(1)).single;
     await service.startServer(port);
 
-    expect(await notify(port, clientId: 'silent-1', codeLocationId: '%2Fapps%2Fsilent%2F'), HttpStatus.ok);
-    expect(await notify(port, clientId: 'other-0', codeLocationId: '%2Fapps%2Fother%2F'), HttpStatus.conflict);
+    expect(await notify(port, clientId: 'silent-1'), HttpStatus.ok);
     applicationStateProviderInstance.changeMode(ApplicationMode.documentPreview);
 
     // the real inactivity timeout: five seconds, checked every second
@@ -264,9 +269,8 @@ void main() {
     addTearDown(() => applicationStateProviderInstance.removeListener(onModeChanged));
     await welcomeScreenIsBack.future.timeout(const Duration(seconds: 10));
 
-    expect(await notify(port, clientId: 'silent-1', codeLocationId: '%2Fapps%2Fsilent%2F'), HttpStatus.conflict);
-    expect(await notify(port, clientId: 'other-0', codeLocationId: '%2Fapps%2Fother%2F'), HttpStatus.conflict);
-    expect(await notify(port, clientId: 'other-1', codeLocationId: '%2Fapps%2Fother%2F'), HttpStatus.ok);
+    expect(await notify(port, clientId: 'silent-1'), HttpStatus.conflict);
+    expect(await notify(port, clientId: 'other-1'), HttpStatus.ok);
   });
 
   test('bind failures retry every five seconds and recover without clearing the error between attempts', () async {
