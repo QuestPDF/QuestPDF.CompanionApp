@@ -748,10 +748,10 @@ packages:
     dependency: "direct main"
     description:
       name: process_run
-      sha256: fafc17be1feb80b23148b0983f00a6b6e14e2b98e1369662c314767780be8dc6
+      sha256: bc771cd3e812205540923ecbc2612367a78eadae08b32e593362aac9c2959693
       url: "https://pub.dev"
     source: hosted
-    version: "1.4.3"
+    version: "1.4.4"
   pub_semver:
     dependency: transitive
     description:
