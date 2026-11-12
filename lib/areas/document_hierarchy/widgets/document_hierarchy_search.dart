@@ -21,6 +21,7 @@ class _DocumentHierarchySearchState extends ConsumerState<DocumentHierarchySearc
   @override
   void initState() {
     super.initState();
+    documentHierarchySearchStateInstance.onFocusRequested = focusFieldImmediately;
     requestSearchFocus();
   }
 
@@ -28,6 +29,11 @@ class _DocumentHierarchySearchState extends ConsumerState<DocumentHierarchySearc
   void activate() {
     super.activate();
     requestSearchFocus();
+  }
+
+  // no frame is pending when the shortcut fires, so a post-frame callback would never run
+  void focusFieldImmediately() {
+    if (mounted) _focusNode.requestFocus();
   }
 
   void requestSearchFocus() {
@@ -38,6 +44,10 @@ class _DocumentHierarchySearchState extends ConsumerState<DocumentHierarchySearc
 
   @override
   void dispose() {
+    if (documentHierarchySearchStateInstance.onFocusRequested == focusFieldImmediately) {
+      documentHierarchySearchStateInstance.onFocusRequested = null;
+    }
+
     _focusNode.dispose();
     super.dispose();
   }

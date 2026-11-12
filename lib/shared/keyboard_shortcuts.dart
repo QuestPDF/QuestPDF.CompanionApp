@@ -27,8 +27,6 @@ bool isControlOrCommandPressed() {
 bool isCanvasNavigationByKeyboardShortcutsAvailable() {
   if (isTextInputActive()) return false;
 
-  if (documentHierarchySearchStateInstance.searchPhrase != null) return false;
-
   if (documentLayoutErrorProviderInstance.containsLayoutError) return false;
 
   if (documentHierarchyProviderInstance.selectedElement != null) return false;
@@ -38,8 +36,6 @@ bool isCanvasNavigationByKeyboardShortcutsAvailable() {
 
 bool areCanvasKeyboardToolInteractionsAvailable() {
   if (isTextInputActive()) return false;
-
-  if (documentHierarchySearchStateInstance.searchPhrase != null) return false;
 
   return true;
 }
@@ -88,12 +84,20 @@ class KeyboardShortcutsState extends State<KeyboardShortcuts> {
 
       if (!isPreviewMode) return false;
 
-      final isSearchActive = documentHierarchySearchStateInstance.searchPhrase != null;
+      // the search captures the keyboard only while its text field has focus; once focus moves elsewhere, regular shortcuts work again
+      final isSearchActive = documentHierarchySearchStateInstance.searchPhrase != null && isTextInputActive();
       final isElementSelected = documentHierarchyProviderInstance.selectedElement != null;
       final documentHasLayoutErrors = documentLayoutErrorProviderInstance.containsLayoutError;
 
       if (isControlPressed && event.physicalKey == PhysicalKeyboardKey.keyB && (isSearchActive || !isTextInputActive())) {
         applicationStateProviderInstance.toggleDocumentHierarchyVisibility();
+        return true;
+      }
+
+      if (isControlPressed &&
+          event.physicalKey == PhysicalKeyboardKey.keyF &&
+          documentHierarchySearchStateInstance.searchPhrase != null) {
+        documentHierarchySearchStateInstance.focusSearchField();
         return true;
       }
 

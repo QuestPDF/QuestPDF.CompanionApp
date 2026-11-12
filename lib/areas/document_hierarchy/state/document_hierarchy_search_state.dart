@@ -24,6 +24,11 @@ class DocumentHierarchySearchState extends ChangeNotifier {
   List<DocumentHierarchyElement> searchResults = [];
   int searchResultIndex = 0;
 
+  // set by the search field, so the shortcut can move focus back to it without touching the phrase
+  VoidCallback? onFocusRequested;
+
+  void focusSearchField() => onFocusRequested?.call();
+
   bool get showSearchCount => (searchPhrase?.isNotEmpty ?? false) && searchResults.isNotEmpty;
 
   void reset() {
