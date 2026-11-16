@@ -83,7 +83,9 @@ npm install --global create-dmg
 For each new build:
 
 ```sh
-create-dmg "QuestPDF Companion 2026.2.1.app" --overwrite 
+create-dmg "QuestPDF Companion 2026.11.0.app" \
+  --identity="Developer ID Application: Marcin Ziabek (L57GK9Y59F)" \
+  --overwrite
 ```
 
 
@@ -101,6 +103,18 @@ xcrun notarytool store-credentials "QuestPDF Companion Profile" \
 For each new build:
 
 ```sh
-xcrun notarytool submit "QuestPDF Companion 2026.2.1.dmg" --keychain-profile "QuestPDF Companion Profile" --wait
-xcrun stapler staple "QuestPDF Companion 2026.2.1.dmg"
+xcrun notarytool submit "QuestPDF Companion 2026.11.0.dmg" \
+  --keychain-profile "QuestPDF Companion Profile" \
+  --wait
+
+xcrun stapler staple "QuestPDF Companion 2026.11.0.dmg"
+```
+
+
+And check results:
+
+```sh
+xcrun stapler validate "QuestPDF Companion 2026.11.0.dmg"
+
+hdiutil verify "QuestPDF Companion 2026.11.0.dmg"
 ```
