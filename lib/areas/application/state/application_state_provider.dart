@@ -60,8 +60,8 @@ class ApplicationStateProvider extends ChangeNotifier {
     showDocumentHierarchy = !showDocumentHierarchy;
     _prefs?.setBool('showDocumentHierarchy', showDocumentHierarchy);
 
-    // a tree item that disappears from under the pointer never reports onExit,
-    // so its element would stay highlighted in the document preview
+    // hiding the panel removes the hovered tree row without an onExit event,
+    // so its element would stay highlighted in the preview
     if (!showDocumentHierarchy) documentHierarchyHoveredElementProviderInstance.setHoveredElement(null);
 
     notifyListeners();
