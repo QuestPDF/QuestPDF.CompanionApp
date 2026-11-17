@@ -148,7 +148,13 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
           : pointerHoverInteractionOf(event.physicalKey);
 
       if (interaction != null) {
-        if (pointerHoverInteraction != interaction) setState(() => pointerHoverInteraction = interaction);
+        if (pointerHoverInteraction != interaction) {
+          setState(() => pointerHoverInteraction = interaction);
+
+          // measure where the cursor is now, not where it was the last time the tool was used
+          if (interaction != PointerHoverInteraction.none) handleManualMeasurement();
+        }
+
         return true;
       }
     }
@@ -460,7 +466,7 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
     final currentPageIndex = pagePositions.indexWhere((x) => x.position.contains(cursorPositionInDocumentCoordinates));
 
     if (currentPageIndex == -1) {
-      Future(() => documentPreviewPointerLocationStateInstance.update(null));
+      documentPreviewPointerLocationStateInstance.update(null);
       return;
     }
 
@@ -472,7 +478,7 @@ class DocumentPreviewState extends State<DocumentPreview> with SingleTickerProvi
       x: currentPagePosition.dx,
       y: currentPagePosition.dy,
     );
-    Future(() => documentPreviewPointerLocationStateInstance.update(position));
+    documentPreviewPointerLocationStateInstance.update(position);
   }
 
   SystemMouseCursor getMouseCursor() {
