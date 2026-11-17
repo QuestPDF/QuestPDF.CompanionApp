@@ -60,7 +60,8 @@ class ApplicationStateProvider extends ChangeNotifier {
     showDocumentHierarchy = !showDocumentHierarchy;
     _prefs?.setBool('showDocumentHierarchy', showDocumentHierarchy);
 
-    // a tree item removed from under the cursor never gets its exit event, so its highlight would stay on the page
+    // a tree item that disappears from under the pointer never reports onExit,
+    // so its element would stay highlighted in the document preview
     if (!showDocumentHierarchy) documentHierarchyHoveredElementProviderInstance.setHoveredElement(null);
 
     notifyListeners();
