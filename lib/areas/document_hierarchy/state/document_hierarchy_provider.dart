@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/document_hierarchy_element.dart';
 import '../models/page_location.dart';
+import 'document_hierarchy_hovered_element_provider.dart';
 import 'document_layout_error_provider.dart';
 
 final documentHierarchyProviderInstance = DocumentHierarchyState();
@@ -22,6 +23,7 @@ class DocumentHierarchyState extends ChangeNotifier {
     root = newRoot;
     _expandDocumentContentHelper();
     selectedElement = null;
+    documentHierarchyHoveredElementProviderInstance.setHoveredElement(null);
 
     notifyListeners();
   }

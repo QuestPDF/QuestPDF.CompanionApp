@@ -60,6 +60,9 @@ class TreeView<TContent> extends ConsumerWidget {
     final indentationLevel = activeItem.indentationLevel;
 
     return MouseRegion(
+      // rows are reused by position, so a pointer resting on a row gets no onEnter when the row's content changes;
+      // the key replaces the row together with its content
+      key: ObjectKey(node.content),
       onEnter: (_) => onHover?.call(node.content),
       onExit: (_) => onHover?.call(null),
       child: GestureDetector(

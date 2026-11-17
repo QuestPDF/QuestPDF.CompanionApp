@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:questpdf_companion/areas/document_hierarchy/state/document_hierarchy_hovered_element_provider.dart';
 import 'package:questpdf_companion/communication_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -58,6 +59,11 @@ class ApplicationStateProvider extends ChangeNotifier {
   void toggleDocumentHierarchyVisibility() {
     showDocumentHierarchy = !showDocumentHierarchy;
     _prefs?.setBool('showDocumentHierarchy', showDocumentHierarchy);
+
+    // hiding the panel removes the hovered tree row without an onExit event,
+    // so its element would stay highlighted in the preview
+    if (!showDocumentHierarchy) documentHierarchyHoveredElementProviderInstance.setHoveredElement(null);
+
     notifyListeners();
   }
 
