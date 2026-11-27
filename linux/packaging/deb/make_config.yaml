@@ -9,12 +9,15 @@ installed_size: 30000
 essential: false
 icon: assets/questpdf-logo.png
 
-# Flutter's GTK embedder and bundled engine use these system libraries.
+# Flutter's GTK embedder and bundled engine use these system libraries
+# (EGL and OpenGL ES are loaded at runtime).
 dependencies:
   - libgtk-3-0
   - libblkid1
   - liblzma5
   - libstdc++6
+  - libegl1
+  - libgles2
 
 keywords:
   - quest
